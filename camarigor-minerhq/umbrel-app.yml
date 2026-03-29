@@ -4,7 +4,7 @@ category: bitcoin
 name: MinerHQ
 version: "1.0.0"
 tagline: Real-time monitoring dashboard for NerdQAxe and AxeOS bitcoin miners
-icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-minerhq/icon.svg
+icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-minerhq/icon.png
 description: >-
   MinerHQ is a real-time monitoring dashboard for NerdQAxe and AxeOS/Zyber ASIC
   bitcoin and altcoin miners.
