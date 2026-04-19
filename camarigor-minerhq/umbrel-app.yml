@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-minerhq
 category: bitcoin
 name: MinerHQ
-version: "1.0.1"
+version: "1.0.2"
 tagline: Real-time monitoring dashboard for NerdQAxe and AxeOS bitcoin miners
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-minerhq/icon.png
 description: >-
@@ -37,6 +37,6 @@ path: ""
 defaultUsername: ""
 defaultPassword: ""
 releaseNotes: >-
-  v1.0.1: Fix silently-dead WebSocket connections causing missed blocks and shares. Add REST API fallback block detection.
+  v1.0.2: Fix duplicate block inserts when both WebSocket and REST detection paths fire for the same event. Adds 60s dedup window per miner.
 submitter: camarigor
 submission: ""
