@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-minerhq
 category: bitcoin
 name: MinerHQ
-version: "1.0.2"
+version: "1.0.3"
 tagline: Real-time monitoring dashboard for NerdQAxe and AxeOS bitcoin miners
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-minerhq/icon.png
 description: >-
@@ -37,6 +37,6 @@ path: ""
 defaultUsername: ""
 defaultPassword: ""
 releaseNotes: >-
-  v1.0.2: Fix duplicate block inserts when both WebSocket and REST detection paths fire for the same event. Adds 60s dedup window per miner.
+  v1.0.3: Switch DGB Blockbook endpoint to blockbook.dgb.zelcore.io. The previous endpoint (digibyteblockexplorer.com) was returning HTTP 502, blocking all DGB block confirmations.
 submitter: camarigor
 submission: ""
