@@ -1,0 +1,55 @@
+version: "3.7"
+
+services:
+  camarigor-dependencytrack-db:
+    image: postgres:17-alpine
+    restart: on-failure
+    stop_grace_period: 1m
+    environment:
+      POSTGRES_DB: dtrack
+      POSTGRES_USER: dtrack
+      POSTGRES_PASSWORD: 983a22989fe4aae6c035e411bbf88874744f505c56e30bc6ebdfa417b0c5423a
+      TZ: America/Sao_Paulo
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ${APP_DATA_DIR}/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "PGPASSWORD=$$POSTGRES_PASSWORD psql -h camarigor-dependencytrack-db -U dtrack -d dtrack -c 'SELECT 1' >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  camarigor-dependencytrack-init:
+    image: busybox:stable
+    user: "0"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    command: ["sh", "-c", "chown -R 1000:1000 /dt-data"]
+    volumes:
+      - ${APP_DATA_DIR}/data:/dt-data
+
+  camarigor-dependencytrack-app:
+    image: dependencytrack/bundled:latest
+    restart: on-failure
+    stop_grace_period: 1m
+    depends_on:
+      camarigor-dependencytrack-db:
+        condition: service_healthy
+      camarigor-dependencytrack-init:
+        condition: service_completed_successfully
+    ports:
+      - "9001:8080"
+    environment:
+      ALPINE_DATABASE_MODE: external
+      ALPINE_DATABASE_URL: jdbc:postgresql://camarigor-dependencytrack-db:5432/dtrack
+      ALPINE_DATABASE_DRIVER: org.postgresql.Driver
+      ALPINE_DATABASE_USERNAME: dtrack
+      ALPINE_DATABASE_PASSWORD: 983a22989fe4aae6c035e411bbf88874744f505c56e30bc6ebdfa417b0c5423a
+      TZ: America/Sao_Paulo
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ${APP_DATA_DIR}/data:/data

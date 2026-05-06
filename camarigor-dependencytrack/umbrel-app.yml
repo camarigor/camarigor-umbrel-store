@@ -1,0 +1,75 @@
+manifestVersion: 1
+id: camarigor-dependencytrack
+category: developer
+name: Dependency-Track
+version: "1.0.0"
+tagline: Self-hosted SBOM platform for software composition analysis (OWASP)
+icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-dependencytrack/icon.png
+description: >-
+  OWASP Dependency-Track is an intelligent component analysis platform that
+  helps organizations identify and reduce risk in their software supply chain.
+
+
+  This package uses the official `dependencytrack/bundled` image, which
+  combines the API server and the Vue.js frontend in a single container with
+  internal nginx routing. PostgreSQL 17 is used as the backing database.
+
+
+  Features:
+
+  - SBOM ingestion (CycloneDX, SPDX) via REST API
+
+  - Vulnerability identification across NVD, OSV, GitHub Advisory, Snyk
+
+  - Continuous monitoring of components for new vulnerabilities
+
+  - Policy engine for license, severity, and inheritance compliance
+
+  - Auditing workflow with state tracking (e.g. exploitable, not affected)
+
+  - REST API with token auth — CI/CD friendly (post your SBOMs to /api/v1/bom)
+
+  - Notification publishers (Slack, Teams, email, webhook)
+
+
+  Resource requirements:
+
+  - At least 4 GB of free RAM is recommended.
+
+  - First boot may take 30s-1min for schema migration on Postgres.
+
+
+  IMPORTANT: After installation, log in with admin / admin and CHANGE THE
+  ADMIN PASSWORD IMMEDIATELY when Dependency-Track prompts you.
+
+
+  CI/CD: API endpoints are available on the same port (9001) under /api/v1/*.
+  Generate API tokens via UI (Administration > Access Management > Teams >
+  click team > API key tab) and POST SBOMs to /api/v1/bom with header
+  `X-API-Key: <token>`.
+developer: camarigor
+website: https://dependencytrack.org/
+support: https://github.com/camarigor/camarigor-umbrel-store/issues
+dependencies: []
+port: 9001
+gallery: []
+path: ""
+defaultUsername: "admin"
+defaultPassword: "admin"
+releaseNotes: >-
+  v1.0.0 (initial release): OWASP Dependency-Track on Umbrel using the
+  official `dependencytrack/bundled` image (API + UI in one container) with
+  PostgreSQL 17 backing database.
+
+
+  IMPORTANT: First login is admin / admin. Dependency-Track will require you
+  to change the password immediately on first login. Do it.
+
+
+  First boot takes 30s-1min while Postgres schema migrates and the apiserver
+  warms up. The UI may show a brief loading screen before becoming ready.
+
+
+  Make sure your Umbrel has at least 4 GB of free RAM available.
+submitter: camarigor
+submission: ""
