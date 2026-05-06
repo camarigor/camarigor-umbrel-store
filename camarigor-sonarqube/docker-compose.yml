@@ -35,8 +35,6 @@ services:
       SONAR_JDBC_USERNAME: sonar
       SONAR_JDBC_PASSWORD: 507515c1cfcfcb2b56420b2a2fccd7fdf37cefd865e25abde96fe6ca53eaeee8
       TZ: America/Sao_Paulo
-    sysctls:
-      - vm.max_map_count=524288
     security_opt:
       - no-new-privileges:true
     volumes:

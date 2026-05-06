@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-sonarqube
 category: developer
 name: SonarQube Server
-version: "1.0.0"
+version: "1.0.1"
 tagline: Self-hosted code quality and static analysis platform (Community)
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-sonarqube/icon.png
 description: >-
@@ -47,11 +47,23 @@ path: ""
 defaultUsername: "admin"
 defaultPassword: "admin"
 releaseNotes: >-
-  v1.0.0 (initial release): SonarQube Community on Umbrel with Postgres 17.
+  v1.0.1: removed `sysctls: vm.max_map_count` from compose. The Docker
+  runtime rejects setting that sysctl in container scope by policy
+  (regardless of kernel version), causing the v1.0.0 install to fail.
+  Debian-based Umbrel hosts ship with `vm.max_map_count = 1048576`
+  persistent in `/usr/lib/sysctl.d/50-default.conf` (well above the
+  Elasticsearch minimum of 262144), so the embedded Elasticsearch in
+  SonarQube reads the host value and starts cleanly.
 
 
-  IMPORTANT: First login is admin / admin. SonarQube will require you to change
-  the password immediately on first login. Do it.
+  Host requirement: `vm.max_map_count >= 262144` must be set on the host.
+  Default on modern systemd-based distros (Debian 12+, Ubuntu 22.04+).
+  If your host is different, add it via `/etc/sysctl.d/99-sonarqube.conf`
+  before installing.
+
+
+  IMPORTANT: First login is admin / admin. SonarQube will require you to
+  change the password immediately on first login. Do it.
 
 
   First boot takes 2-3 minutes while Elasticsearch initializes — be patient
