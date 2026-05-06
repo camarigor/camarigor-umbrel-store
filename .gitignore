@@ -1,0 +1,5 @@
+# Working docs (specs, brainstorming, plans) — local only, not for the public store
+/docs/
+
+# Plugin Remember — logs de sessao, nao versionar
+/.remember/
