@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-sonarqube
 category: developer
 name: SonarQube Server
-version: "1.0.1"
+version: "1.0.2"
 tagline: Self-hosted code quality and static analysis platform (Community)
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-sonarqube/icon.png
 description: >-
@@ -47,6 +47,14 @@ path: ""
 defaultUsername: "admin"
 defaultPassword: "admin"
 releaseNotes: >-
+  v1.0.2: added `sonarqube-init` busybox container that fixes ownership
+  of the SonarQube data/extensions/logs bind-mount directories (chown to
+  uid 1000) before the SonarQube service starts. Without this, the
+  embedded Elasticsearch fails to create its config dir because Umbrel
+  creates the bind-mount paths as root, and the official SonarQube image
+  runs as uid 1000 (and does not self-chown like Postgres does).
+
+
   v1.0.1: removed `sysctls: vm.max_map_count` from compose. The Docker
   runtime rejects setting that sysctl in container scope by policy
   (regardless of kernel version), causing the v1.0.0 install to fail.

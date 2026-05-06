@@ -21,6 +21,18 @@ services:
       retries: 10
       start_period: 30s
 
+  sonarqube-init:
+    image: busybox:stable
+    user: "0"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    command: ["sh", "-c", "chown -R 1000:1000 /sonarqube-data /sonarqube-extensions /sonarqube-logs"]
+    volumes:
+      - ${APP_DATA_DIR}/sonarqube/data:/sonarqube-data
+      - ${APP_DATA_DIR}/sonarqube/extensions:/sonarqube-extensions
+      - ${APP_DATA_DIR}/sonarqube/logs:/sonarqube-logs
+
   sonarqube:
     image: sonarqube:community
     restart: on-failure
@@ -28,6 +40,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      sonarqube-init:
+        condition: service_completed_successfully
     ports:
       - "9000:9000"
     environment:
