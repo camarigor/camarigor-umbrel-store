@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-sonarqube
 category: developer
 name: SonarQube Server
-version: "1.0.3"
+version: "1.0.4"
 tagline: Self-hosted code quality and static analysis platform (Community)
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-sonarqube/icon.png
 description: >-
@@ -47,15 +47,25 @@ path: ""
 defaultUsername: "admin"
 defaultPassword: "admin"
 releaseNotes: >-
+  v1.0.4: renamed the database service from `db` to
+  `camarigor-sonarqube-db` to avoid Docker DNS collision on Umbrel's
+  shared `umbrel_main_network`. Multiple Umbrel apps (Forgejo, Kan,
+  others) also use `db` as their service name; on a shared network,
+  Docker DNS round-robins between all containers sharing that alias,
+  so connections to `db` from inside our app would land on the wrong
+  Postgres ~2/3 of the time, causing seemingly random auth failures.
+  Using a unique service name eliminates the collision entirely. This
+  was the actual root cause behind the auth flakiness that v1.0.3 tried
+  to work around with a smarter healthcheck.
+
+
   v1.0.3: changed the `db` healthcheck from `pg_isready` to a real
-  scram-sha-256 authenticated query (`psql -h db ... SELECT 1`) so the
+  scram-sha-256 authenticated query (`psql ... SELECT 1`) so the
   `service_healthy` condition only becomes true once Postgres can
-  actually accept authenticated TCP connections. This closes a race
-  window observed during v1.0.2 install where `pg_isready` returned OK
-  but auth still failed transiently, causing SonarQube to crash on
-  HikariCP pool init (which treats auth failures as fatal). With the
-  new healthcheck, SonarQube does not start until auth definitively
-  works.
+  actually accept authenticated TCP connections. (NOTE in v1.0.4: this
+  did not fix the underlying issue, since the auth failures were caused
+  by hitting the wrong Postgres entirely — see v1.0.4. The robust
+  healthcheck is still useful for catching real auth issues earlier.)
 
 
   v1.0.2: added `sonarqube-init` busybox container that fixes ownership
