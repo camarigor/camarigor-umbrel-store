@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-sonarqube
 category: developer
 name: SonarQube Server
-version: "1.0.2"
+version: "1.0.3"
 tagline: Self-hosted code quality and static analysis platform (Community)
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-sonarqube/icon.png
 description: >-
@@ -47,6 +47,17 @@ path: ""
 defaultUsername: "admin"
 defaultPassword: "admin"
 releaseNotes: >-
+  v1.0.3: changed the `db` healthcheck from `pg_isready` to a real
+  scram-sha-256 authenticated query (`psql -h db ... SELECT 1`) so the
+  `service_healthy` condition only becomes true once Postgres can
+  actually accept authenticated TCP connections. This closes a race
+  window observed during v1.0.2 install where `pg_isready` returned OK
+  but auth still failed transiently, causing SonarQube to crash on
+  HikariCP pool init (which treats auth failures as fatal). With the
+  new healthcheck, SonarQube does not start until auth definitively
+  works.
+
+
   v1.0.2: added `sonarqube-init` busybox container that fixes ownership
   of the SonarQube data/extensions/logs bind-mount directories (chown to
   uid 1000) before the SonarQube service starts. Without this, the
