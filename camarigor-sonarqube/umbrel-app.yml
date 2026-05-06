@@ -1,0 +1,63 @@
+manifestVersion: 1
+id: camarigor-sonarqube
+category: developer
+name: SonarQube Server
+version: "1.0.0"
+tagline: Self-hosted code quality and static analysis platform (Community)
+icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-sonarqube/icon.png
+description: >-
+  SonarQube Server Community Edition packaged for Umbrel, with PostgreSQL 17
+  as backing database.
+
+
+  SonarQube performs continuous static analysis of source code to detect bugs,
+  security vulnerabilities, code smells, and to track code coverage and
+  duplications across many programming languages.
+
+
+  Features:
+
+  - Static analysis for 30+ languages out of the box
+
+  - Issue tracking with severity, type, and status
+
+  - Quality Gates for CI/CD enforcement
+
+  - Pull-request decoration via webhooks
+
+  - Plugin marketplace for additional rules and integrations
+
+
+  Resource requirements:
+
+  - At least 4 GB of free RAM is recommended on first boot.
+
+  - First boot may take 2-3 minutes while Elasticsearch initializes.
+
+
+  IMPORTANT: After installation, log in with admin / admin and CHANGE THE
+  ADMIN PASSWORD IMMEDIATELY when SonarQube prompts you.
+developer: camarigor
+website: https://www.sonarsource.com/products/sonarqube/
+support: https://github.com/camarigor/camarigor-umbrel-store/issues
+dependencies: []
+port: 9000
+gallery: []
+path: ""
+defaultUsername: "admin"
+defaultPassword: "admin"
+releaseNotes: >-
+  v1.0.0 (initial release): SonarQube Community on Umbrel with Postgres 17.
+
+
+  IMPORTANT: First login is admin / admin. SonarQube will require you to change
+  the password immediately on first login. Do it.
+
+
+  First boot takes 2-3 minutes while Elasticsearch initializes — be patient
+  before opening the UI.
+
+
+  Make sure your Umbrel has at least 4 GB of free RAM before installing.
+submitter: camarigor
+submission: ""
