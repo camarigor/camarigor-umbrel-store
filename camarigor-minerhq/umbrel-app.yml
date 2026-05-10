@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-minerhq
 category: bitcoin
 name: MinerHQ
-version: "1.0.5"
+version: "1.0.6"
 tagline: Real-time monitoring dashboard for NerdQAxe and AxeOS bitcoin miners
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-minerhq/icon.png
 description: >-
@@ -37,6 +37,6 @@ path: ""
 defaultUsername: ""
 defaultPassword: ""
 releaseNotes: >-
-  v1.0.5: Internal refactors to support unit tests; coverage now at 95.9% across all internal packages. No functional changes.
+  v1.0.6: Fixes a race condition in the collector that could panic on shutdown ("send on closed channel"); test seam for the miner URL builder is now mutex-protected. Coverage 96.8%; full race detector clean.
 submitter: camarigor
 submission: ""
