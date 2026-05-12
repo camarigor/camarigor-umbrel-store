@@ -2,7 +2,7 @@ version: "3.7"
 
 services:
   server:
-    image: ghcr.io/camarigor/miner-hq:1.0.6
+    image: ghcr.io/camarigor/miner-hq:1.0.7
     restart: on-failure
     stop_grace_period: 30s
     network_mode: host
