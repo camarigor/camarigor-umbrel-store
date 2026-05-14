@@ -1,0 +1,29 @@
+version: "3.7"
+
+# NOTE: read_only:true is intentionally NOT set for this service.
+# MeshMonitor's startup runs chown -R on /app/dist for its non-root user,
+# which fails on a read-only filesystem. Compensating security controls
+# are applied below: no-new-privileges, all capabilities dropped except
+# the four required for the chown step, and data isolated in named volume.
+services:
+  camarigor-meshmonitor:
+    image: ghcr.io/yeraze/meshmonitor:latest
+    restart: on-failure
+    stop_grace_period: 30s
+    ports:
+      - "9003:3001"
+    environment:
+      TZ: America/Sao_Paulo
+      ALLOWED_ORIGINS: "http://umbrel.local:9003,http://${DEVICE_HOSTNAME:-umbrel}.local:9003,http://${DEVICE_DOMAIN_NAME:-umbrel.local}:9003"
+      COOKIE_SECURE: "false"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+    volumes:
+      - ${APP_DATA_DIR}/data:/data

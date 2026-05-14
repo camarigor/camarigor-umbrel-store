@@ -1,0 +1,66 @@
+manifestVersion: 1
+id: camarigor-meshmonitor
+category: networking
+name: MeshMonitor
+version: "4.3.2"
+tagline: Self-hosted Meshtastic monitoring with real-time maps, messages, and alerts
+icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-meshmonitor/icon.png
+description: >-
+  MeshMonitor is a self-hosted Meshtastic monitoring and management platform
+  for multi-source LoRa mesh networks. Goes well beyond the standard Meshtastic
+  Web client by providing centralized dashboard, real-time analytics, message
+  history, automation, and remote administration.
+
+
+  Features:
+
+  - Real-time map view with all nodes, GPS positions, and traceroutes
+
+  - Unified message history across multiple Meshtastic nodes (sources)
+
+  - Per-source permission system with user roles
+
+  - Telemetry visualization (battery, voltage, channel utilization, sensors)
+
+  - Push, Apprise, and desktop notifications
+
+  - Automated traceroutes, time-sync, and key repair
+
+  - Channel and node database with full mesh awareness
+
+  - SQLite-backed data persistence with automatic backups
+
+  - Solar production estimates and weather integration
+
+  - Security audit log and digest reports
+
+
+  After installing, log in with the default credentials and change them
+  immediately. Configure your Meshtastic node IP via Dashboard → Sources or
+  via the `MESHTASTIC_NODE_IP` environment variable.
+
+
+  IMPORTANT: Default login is admin / changeme. Change the admin password
+  on first login.
+developer: Yeraze
+website: https://meshmonitor.org
+support: https://github.com/Yeraze/meshmonitor/issues
+dependencies: []
+port: 9003
+gallery: []
+path: ""
+defaultUsername: "admin"
+defaultPassword: "changeme"
+releaseNotes: >-
+  v4.3.2: Initial release on the Camarigor store. Uses the upstream
+  `ghcr.io/yeraze/meshmonitor:latest` image. Exposed on port 9003. CORS
+  preconfigured to allow access via http://umbrel.local:9003 and the
+  Umbrel host IP. SQLite database persisted via a named volume so app
+  uninstall/reinstall preserves history.
+
+
+  IMPORTANT: Login as admin / changeme on first boot and change the
+  password immediately. Configure your Meshtastic node IP via the
+  Dashboard → Sources after installation.
+submitter: camarigor
+submission: ""
