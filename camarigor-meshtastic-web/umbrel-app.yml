@@ -1,0 +1,51 @@
+manifestVersion: 1
+id: camarigor-meshtastic-web
+category: networking
+name: Meshtastic Web
+version: "2.6.7"
+tagline: Self-hosted web client for Meshtastic LoRa mesh nodes
+icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-meshtastic-web/icon.png
+description: >-
+  Meshtastic Web is the official browser-based client for Meshtastic LoRa mesh
+  network devices, packaged here for self-hosting on Umbrel.
+
+
+  This is the same code as client.meshtastic.org but served over plain HTTP
+  from your Umbrel, which lets the browser connect to your local Meshtastic
+  node without the self-signed-certificate / mixed-content problems that
+  affect the public client when targeting a device on your LAN.
+
+
+  Features:
+
+  - Real-time messaging across mesh channels (broadcast, encrypted, DMs)
+
+  - Map view with all known nodes, RSSI, and position history
+
+  - Full device configuration (LoRa region, MQTT, WiFi, GPS, power, channels)
+
+  - Telemetry visualization (battery, voltage, channel utilization, env sensors)
+
+  - Node database with traceroutes and neighbour discovery
+
+  - Multi-device support — switch between several Meshtastic nodes
+
+
+  After installing, open the app and add a new HTTP connection pointing to
+  your Meshtastic node's local IP (e.g. `10.0.0.50` or `meshtastic.local`).
+  Bluetooth and Web Serial are also supported when accessing the app from
+  a device with the appropriate hardware.
+developer: Meshtastic Project
+website: https://meshtastic.org
+support: https://github.com/meshtastic/web/issues
+dependencies: []
+port: 9002
+gallery: []
+path: ""
+defaultUsername: ""
+defaultPassword: ""
+releaseNotes: >-
+  v2.6.7: Initial release of the Meshtastic Web client on the Camarigor store,
+  using the upstream `ghcr.io/meshtastic/web:latest` image. Default port 9002.
+submitter: camarigor
+submission: ""
