@@ -11,78 +11,74 @@ Backend services pro dashboard físico LilyGo T-Display-S3:
 - App **Mosquitto** instalado e configurado (com auth + ACL).
 - Router OpenWRT com `snmpd` instalado e configurado (ler/aceitar community).
 
-## Setup (ANTES do primeiro start)
-
-Este app NÃO hardcoded credenciais ou IPs no compose. Você cria 3 arquivos `.env` em `${APP_DATA_DIR}` (caminho normalmente `~/umbrel/app-data/camarigor-tdisplay-stack/`).
-
-### 1. Copie os 3 templates
-
-Via SSH no host Umbrel:
-
-```bash
-APP_DIR=~/umbrel/app-data/camarigor-tdisplay-stack
-mkdir -p $APP_DIR
-
-# data-collector.env
-cat > $APP_DIR/data-collector.env <<'EOF'
-TZ=America/Sao_Paulo
-MQTT_HOST=<IP_DO_BROKER>
-MQTT_PORT=1883
-MQTT_USER=collector-data
-MQTT_PASS=<SENHA_REAL_collector-data>
-OPEN_METEO_URL=https://api.open-meteo.com/v1/forecast
-WEATHER_CITIES=<id1>,<id2>
-WEATHER_<id1>_LABEL=NOME EXIBIDO
-WEATHER_<id1>_LAT=
-WEATHER_<id1>_LON=
-WEATHER_<id2>_LABEL=NOME EXIBIDO
-WEATHER_<id2>_LAT=
-WEATHER_<id2>_LON=
-POLL_INTERVAL_S=600
-TOPIC_PREFIX_WEATHER=data/weather
-LOG_LEVEL=INFO
-EOF
-
-# telegraf-broker.env
-cat > $APP_DIR/telegraf-broker.env <<'EOF'
-HOSTNAME=<hostname_do_broker>
-MQTT_HOST=<IP_DO_BROKER>
-MQTT_PORT=1883
-MQTT_PASS=<SENHA_collector-<broker_host>>
-EOF
-
-# telegraf-router.env
-cat > $APP_DIR/telegraf-router.env <<'EOF'
-HOSTNAME=<hostname_do_router>
-MQTT_HOST=<IP_DO_BROKER>
-MQTT_PORT=1883
-MQTT_PASS=<SENHA_collector-<router_host>>
-SNMP_COMMUNITY=<community_snmp>
-ROUTER_IP=<IP_do_router>
-EOF
-
-chmod 600 $APP_DIR/*.env
-```
-
-### 2. Copie os arquivos de config (Telegraf + nginx)
-
-Os 3 `.conf` (`telegraf-broker.conf`, `telegraf-router.conf`, `nginx.conf`) precisam estar em `${APP_DATA_DIR}`:
-
-```bash
-# Local (na sua máquina):
-scp -O umbrel-app-store-entries/camarigor-tdisplay-stack/{telegraf-broker.conf,telegraf-router.conf,nginx.conf} \
-    umbrel@<UMBREL_IP>:/tmp/
-
-# Remoto:
-ssh umbrel@<UMBREL_IP> "mv /tmp/{telegraf-broker.conf,telegraf-router.conf,nginx.conf} $APP_DIR/"
-mkdir -p $APP_DIR/firmware  # nginx serve OTA binaries daqui
-```
-
-### 3. Install via Umbrel UI
+## Install
 
 App Store → Community → Camarigor → T-Display Stack → Install.
 
-### 4. Validar
+Na primeira inicialização, o init container cria os 3 arquivos de configuração (`telegraf-broker.conf`, `telegraf-router.conf`, `nginx.conf`) em `${APP_DATA_DIR}` automaticamente.
+
+## Setup (DEPOIS do install)
+
+Por questões de validação do Umbrel (env_file paths são checados pre-start), as variáveis de ambiente ficam inline no `docker-compose.yml`. Após install, edite o compose deployado:
+
+```bash
+ssh umbrel@<UMBREL_IP>
+APP_DIR=~/umbrel/app-data/camarigor-tdisplay-stack
+vi $APP_DIR/docker-compose.yml
+```
+
+Preencha os campos vazios em cada service:
+
+### Service `camarigor-tdisplay-stack` (data-collector)
+
+```yaml
+environment:
+  TZ: "America/Sao_Paulo"
+  LOG_LEVEL: "INFO"
+  MQTT_HOST: "<IP_DO_BROKER>"
+  MQTT_PORT: "1883"
+  MQTT_USER: "collector-data"
+  MQTT_PASS: "<SENHA_collector-data>"
+  OPEN_METEO_URL: "https://api.open-meteo.com/v1/forecast"
+  POLL_INTERVAL_S: "600"
+  TOPIC_PREFIX_WEATHER: "data/weather"
+  WEATHER_CITIES: "<id1>,<id2>"
+  # Adicione 1 par LABEL/LAT/LON por id:
+  WEATHER_<id1>_LABEL: "NOME EXIBIDO"
+  WEATHER_<id1>_LAT: "<latitude>"
+  WEATHER_<id1>_LON: "<longitude>"
+  WEATHER_<id2>_LABEL: "NOME EXIBIDO"
+  WEATHER_<id2>_LAT: "<latitude>"
+  WEATHER_<id2>_LON: "<longitude>"
+```
+
+### Service `_telegraf-broker`
+
+```yaml
+environment:
+  HOSTNAME: "<hostname_do_broker>"
+  MQTT_HOST: "<IP_DO_BROKER>"
+  MQTT_PORT: "1883"
+  MQTT_USER: "collector-<hostname_broker>"
+  MQTT_PASS: "<SENHA_collector-broker>"
+```
+
+### Service `_telegraf-router`
+
+```yaml
+environment:
+  HOSTNAME: "<hostname_do_router>"
+  MQTT_HOST: "<IP_DO_BROKER>"
+  MQTT_PORT: "1883"
+  MQTT_USER: "collector-<hostname_router>"
+  MQTT_PASS: "<SENHA_collector-router>"
+  SNMP_COMMUNITY: "<community_snmp_v2c>"
+  ROUTER_IP: "<IP_do_router>"
+```
+
+Restart o app via Umbrel UI após salvar.
+
+## Validar
 
 ```bash
 mosquitto_sub -h <IP_BROKER> -u admin -P "$ADMIN_PASS" -t 'stats/+/#' -v
@@ -97,6 +93,19 @@ Os tópicos MQTT publicados refletem a topologia hostname declarada em cada `HOS
 - `stats/<router_hostname>/snmp` (Telegraf SNMP)
 - `data/weather/<city_id>` (per cidade em WEATHER_CITIES)
 
-## Atualização
+## Update
 
-`docker pull ghcr.io/camarigor/tdisplay-data-collector:latest` + restart app via Umbrel UI.
+A edição manual no `docker-compose.yml` do app-data sobrevive uninstall/reinstall apenas se o app-data não for limpo. Pra updates de imagem:
+
+```bash
+docker pull ghcr.io/camarigor/tdisplay-data-collector:latest
+docker pull ghcr.io/camarigor/tdisplay-init:latest
+```
+
+E restart o app via Umbrel UI.
+
+## Notas técnicas
+
+- v1.1.0: env vars inline. Tentativa anterior com `env_file:` apontando pra arquivos criados via init container falhou — Umbrel valida paths pre-start, antes do init rodar.
+- O init container apenas semeia configs Telegraf/nginx (idempotente, preserva edições do user).
+- Hardening: read_only rootfs + tmpfs + no-new-privileges em todos os services.

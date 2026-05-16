@@ -1,6 +1,6 @@
 services:
   camarigor-tdisplay-stack_init:
-    image: ghcr.io/camarigor/tdisplay-init:1.0.0
+    image: ghcr.io/camarigor/tdisplay-init:1.1.0
     user: "0"
     restart: "no"
     security_opt:
@@ -18,8 +18,17 @@ services:
     depends_on:
       camarigor-tdisplay-stack_init:
         condition: service_completed_successfully
-    env_file:
-      - ${APP_DATA_DIR}/data-collector.env
+    environment:
+      TZ: "UTC"
+      LOG_LEVEL: "INFO"
+      MQTT_HOST: ""
+      MQTT_PORT: "1883"
+      MQTT_USER: "collector-data"
+      MQTT_PASS: ""
+      OPEN_METEO_URL: "https://api.open-meteo.com/v1/forecast"
+      POLL_INTERVAL_S: "600"
+      TOPIC_PREFIX_WEATHER: "data/weather"
+      WEATHER_CITIES: ""
     volumes:
       - ${APP_DATA_DIR}/data:/data
     security_opt:
@@ -37,8 +46,12 @@ services:
     depends_on:
       camarigor-tdisplay-stack_init:
         condition: service_completed_successfully
-    env_file:
-      - ${APP_DATA_DIR}/telegraf-broker.env
+    environment:
+      HOSTNAME: ""
+      MQTT_HOST: ""
+      MQTT_PORT: "1883"
+      MQTT_USER: ""
+      MQTT_PASS: ""
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -58,8 +71,14 @@ services:
     depends_on:
       camarigor-tdisplay-stack_init:
         condition: service_completed_successfully
-    env_file:
-      - ${APP_DATA_DIR}/telegraf-router.env
+    environment:
+      HOSTNAME: ""
+      MQTT_HOST: ""
+      MQTT_PORT: "1883"
+      MQTT_USER: ""
+      MQTT_PASS: ""
+      SNMP_COMMUNITY: ""
+      ROUTER_IP: ""
     volumes:
       - ${APP_DATA_DIR}/telegraf-router.conf:/etc/telegraf/telegraf.conf:ro
 

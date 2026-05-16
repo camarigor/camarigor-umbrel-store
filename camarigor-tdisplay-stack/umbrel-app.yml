@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-tdisplay-stack
 category: utilities
 name: T-Display Stack
-version: "1.0.0"
+version: "1.1.0"
 tagline: Stats, weather, and OTA firmware backend for the LilyGo T-Display-S3 dashboard
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-tdisplay-stack/icon.png
 description: >-
@@ -33,35 +33,40 @@ description: >-
 
   1. SSH no host Umbrel.
 
-  2. Edite os 3 env files vazios em
-     ~/umbrel/app-data/camarigor-tdisplay-stack/{data-collector,telegraf-broker,telegraf-router}.env
-     com seus valores reais (IPs, hostnames, senhas MQTT, community SNMP,
-     coordenadas das cidades).
+  2. Edite `~/umbrel/app-data/camarigor-tdisplay-stack/docker-compose.yml`
+     preenchendo as variáveis vazias dos services (MQTT_HOST, MQTT_PASS,
+     WEATHER_CITIES + WEATHER_<id>_LABEL/LAT/LON, HOSTNAME, SNMP_COMMUNITY,
+     ROUTER_IP).
 
   3. Restart o app via Umbrel UI.
 
   4. Valide com `mosquitto_sub -h <broker_ip> -u admin -P <pass> -t 'stats/+/#' -v`.
 
 
-  Templates dos env files estão no README do app store:
+  Templates e exemplos no README do app store:
   https://github.com/camarigor/camarigor-umbrel-store/tree/main/camarigor-tdisplay-stack
 developer: camarigor
 website: https://github.com/camarigor/lilygo-t-display-s3
 support: https://github.com/camarigor/lilygo-t-display-s3/issues
-dependencies:
-  - mosquitto
+dependencies: []
+port: 8081
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.1.0: env vars inline no compose em vez de env_file (compatibilidade
+  com validação Umbrel pre-start). Init container apenas seed de configs
+  Telegraf+nginx. Edição pós-install: docker-compose.yml em app-data.
+
+
   v1.0.0: Initial release.
 
 
   - Imagem custom data-collector (ghcr.io/camarigor/tdisplay-data-collector:1.0.0)
     poller Open-Meteo + paho-mqtt, publica `data/weather/<city>` retained.
 
-  - Imagem custom tdisplay-init (ghcr.io/camarigor/tdisplay-init:1.0.0) roda
-    como init container — cria env files vazios + configs Telegraf default
-    no app-data no primeiro start, sem sobrescrever edições do user.
+  - Imagem custom tdisplay-init (ghcr.io/camarigor/tdisplay-init:1.1.0) roda
+    como init container — copia configs Telegraf default + nginx.conf pro
+    app-data no primeiro start sem sobrescrever edições do user.
 
   - Telegraf 1.31-alpine x2 (broker + router SNMP).
 
@@ -70,12 +75,9 @@ releaseNotes: >-
   - Hardening: read_only rootfs + tmpfs + no-new-privileges em todos os
     services.
 
-  - Compose validado em Umbrel 1.x (legacy-compat).
 
-
-  IMPORTANTE: Após install, edite os 3 env files em
-  `~/umbrel/app-data/camarigor-tdisplay-stack/` e restart. Sem isso, os
-  containers entram em loop `restart: on-failure` (MQTT_HOST/MQTT_PASS
-  vazios não conectam).
+  IMPORTANTE: Após install, edite as env vars vazias em
+  `~/umbrel/app-data/camarigor-tdisplay-stack/docker-compose.yml` e restart.
+  Sem isso, os containers entram em loop `restart: on-failure`.
 submitter: camarigor
-submission: https://github.com/camarigor/camarigor-umbrel-store
+submission: ""
