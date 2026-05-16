@@ -3,20 +3,79 @@ id: camarigor-tdisplay-stack
 category: utilities
 name: T-Display Stack
 version: "1.0.0"
-tagline: Stats, weather, and OTA firmware server for the LilyGo T-Display-S3 dashboard
+tagline: Stats, weather, and OTA firmware backend for the LilyGo T-Display-S3 dashboard
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-tdisplay-stack/icon.png
 description: >-
-  Backend services for the LilyGo T-Display-S3 desk dashboard:
-  - Weather poller (Open-Meteo) publishing to local MQTT broker
-  - Telegraf collecting CPU/mem/disk/net/uptime from the broker host
-  - Telegraf polling network router via SNMP (publishes as stats/<router_host>)
-  - Nginx serving OTA firmware binaries on :8081
+  T-Display Stack é o backend para o dashboard físico baseado em LilyGo
+  T-Display-S3. Reúne em um único Umbrel app os 4 serviços que alimentam a
+  placa via MQTT, deixando a UI da placa funcional sem instalações manuais.
 
-  Requires the Mosquitto Umbrel app installed first.
-  Configuration via env vars in the Umbrel app UI.
-dependencies:
-  - mosquitto
+
+  Componentes:
+
+  - Weather poller (Open-Meteo): publica `data/weather/<city>` no broker MQTT.
+
+  - Telegraf @ broker: coleta CPU/mem/disk/net/uptime do próprio Umbrel
+    e publica em `stats/<broker_host>/*`.
+
+  - Telegraf @ router: SNMP polling do router (OpenWRT) e publica em
+    `stats/<router_host>/*`.
+
+  - Nginx (firmware server): serve binários OTA do firmware ESP32 em :8081,
+    para a placa baixar updates assinados.
+
+
+  Requer o app Mosquitto instalado antes (do Umbrel store oficial) e o
+  router configurado com snmpd (community v2c read-only).
+
+
+  Setup pós-install:
+
+  1. SSH no host Umbrel.
+
+  2. Edite os 3 env files vazios em
+     ~/umbrel/app-data/camarigor-tdisplay-stack/{data-collector,telegraf-broker,telegraf-router}.env
+     com seus valores reais (IPs, hostnames, senhas MQTT, community SNMP,
+     coordenadas das cidades).
+
+  3. Restart o app via Umbrel UI.
+
+  4. Valide com `mosquitto_sub -h <broker_ip> -u admin -P <pass> -t 'stats/+/#' -v`.
+
+
+  Templates dos env files estão no README do app store:
+  https://github.com/camarigor/camarigor-umbrel-store/tree/main/camarigor-tdisplay-stack
 developer: camarigor
 website: https://github.com/camarigor/lilygo-t-display-s3
+support: https://github.com/camarigor/lilygo-t-display-s3/issues
+dependencies:
+  - mosquitto
+gallery: []
+path: ""
+releaseNotes: >-
+  v1.0.0: Initial release.
+
+
+  - Imagem custom data-collector (ghcr.io/camarigor/tdisplay-data-collector:1.0.0)
+    poller Open-Meteo + paho-mqtt, publica `data/weather/<city>` retained.
+
+  - Imagem custom tdisplay-init (ghcr.io/camarigor/tdisplay-init:1.0.0) roda
+    como init container — cria env files vazios + configs Telegraf default
+    no app-data no primeiro start, sem sobrescrever edições do user.
+
+  - Telegraf 1.31-alpine x2 (broker + router SNMP).
+
+  - Nginx alpine pra OTA firmware (porta 8081).
+
+  - Hardening: read_only rootfs + tmpfs + no-new-privileges em todos os
+    services.
+
+  - Compose validado em Umbrel 1.x (legacy-compat).
+
+
+  IMPORTANTE: Após install, edite os 3 env files em
+  `~/umbrel/app-data/camarigor-tdisplay-stack/` e restart. Sem isso, os
+  containers entram em loop `restart: on-failure` (MQTT_HOST/MQTT_PASS
+  vazios não conectam).
 submitter: camarigor
 submission: https://github.com/camarigor/camarigor-umbrel-store
