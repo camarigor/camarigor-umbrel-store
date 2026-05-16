@@ -1,0 +1,76 @@
+version: "3.7"
+
+services:
+  camarigor-tdisplay-stack:
+    image: ghcr.io/camarigor/tdisplay-data-collector:1.0.0
+    restart: on-failure
+    stop_grace_period: 10s
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      TZ: ${TZ}
+      MQTT_HOST: ${MQTT_HOST}
+      MQTT_PORT: ${MQTT_PORT}
+      MQTT_USER: ${MQTT_USER_COLLECTOR_DATA}
+      MQTT_PASS: ${MQTT_PASS_COLLECTOR_DATA}
+      OPEN_METEO_URL: ${OPEN_METEO_URL}
+      WEATHER_CITIES: ${WEATHER_CITIES}
+      POLL_INTERVAL_S: ${WEATHER_POLL_INTERVAL_S}
+      TOPIC_PREFIX_WEATHER: ${TOPIC_PREFIX_WEATHER}
+      LOG_LEVEL: ${LOG_LEVEL}
+    volumes:
+      - ${APP_DATA_DIR}/data:/data
+    security_opt:
+      - no-new-privileges:true
+
+  camarigor-tdisplay-stack_telegraf-broker:
+    image: telegraf:1.31-alpine
+    restart: on-failure
+    hostname: ${MQTT_BROKER_HOST}
+    network_mode: host
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      MQTT_PASS: ${MQTT_PASS_COLLECTOR_BROKER}
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /etc/hostname:/host/etc/hostname:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${APP_DATA_DIR}/telegraf-broker.conf:/etc/telegraf/telegraf.conf:ro
+
+  camarigor-tdisplay-stack_telegraf-router:
+    image: telegraf:1.31-alpine
+    restart: on-failure
+    hostname: ${HOST_ROUTER}
+    network_mode: host
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      MQTT_PASS: ${MQTT_PASS_COLLECTOR_ROUTER}
+      SNMP_COMMUNITY: ${SNMP_COMMUNITY}
+      ROUTER_IP: ${ROUTER_IP}
+    volumes:
+      - ${APP_DATA_DIR}/telegraf-router.conf:/etc/telegraf/telegraf.conf:ro
+
+  camarigor-tdisplay-stack_firmware-server:
+    image: nginx:alpine
+    restart: on-failure
+    network_mode: host
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ${APP_DATA_DIR}/firmware:/usr/share/nginx/html:ro
+      - ${APP_DATA_DIR}/nginx.conf:/etc/nginx/nginx.conf:ro

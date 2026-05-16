@@ -1,0 +1,22 @@
+manifestVersion: 1
+id: camarigor-tdisplay-stack
+category: utilities
+name: T-Display Stack
+version: "1.0.0"
+tagline: Stats, weather, and OTA firmware server for the LilyGo T-Display-S3 dashboard
+icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-tdisplay-stack/icon.png
+description: >-
+  Backend services for the LilyGo T-Display-S3 desk dashboard:
+  - Weather poller (Open-Meteo) publishing to local MQTT broker
+  - Telegraf collecting CPU/mem/disk/net/uptime from the broker host
+  - Telegraf polling network router via SNMP (publishes as stats/<router_host>)
+  - Nginx serving OTA firmware binaries on :8081
+
+  Requires the Mosquitto Umbrel app installed first.
+  Configuration via env vars in the Umbrel app UI.
+dependencies:
+  - mosquitto
+developer: camarigor
+website: https://github.com/camarigor/lilygo-t-display-s3
+submitter: camarigor
+submission: https://github.com/camarigor/camarigor-umbrel-store
