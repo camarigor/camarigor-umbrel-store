@@ -8,17 +8,8 @@ services:
     read_only: true
     tmpfs:
       - /tmp
-    environment:
-      TZ: ${TZ}
-      MQTT_HOST: ${MQTT_HOST}
-      MQTT_PORT: ${MQTT_PORT}
-      MQTT_USER: ${MQTT_USER_COLLECTOR_DATA}
-      MQTT_PASS: ${MQTT_PASS_COLLECTOR_DATA}
-      OPEN_METEO_URL: ${OPEN_METEO_URL}
-      WEATHER_CITIES: ${WEATHER_CITIES}
-      POLL_INTERVAL_S: ${WEATHER_POLL_INTERVAL_S}
-      TOPIC_PREFIX_WEATHER: ${TOPIC_PREFIX_WEATHER}
-      LOG_LEVEL: ${LOG_LEVEL}
+    env_file:
+      - ${APP_DATA_DIR}/data-collector.env
     volumes:
       - ${APP_DATA_DIR}/data:/data
     security_opt:
@@ -27,15 +18,14 @@ services:
   camarigor-tdisplay-stack_telegraf-broker:
     image: telegraf:1.31-alpine
     restart: on-failure
-    hostname: ${MQTT_BROKER_HOST}
     network_mode: host
     read_only: true
     tmpfs:
       - /tmp
     security_opt:
       - no-new-privileges:true
-    environment:
-      MQTT_PASS: ${MQTT_PASS_COLLECTOR_BROKER}
+    env_file:
+      - ${APP_DATA_DIR}/telegraf-broker.env
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -46,17 +36,14 @@ services:
   camarigor-tdisplay-stack_telegraf-router:
     image: telegraf:1.31-alpine
     restart: on-failure
-    hostname: ${HOST_ROUTER}
     network_mode: host
     read_only: true
     tmpfs:
       - /tmp
     security_opt:
       - no-new-privileges:true
-    environment:
-      MQTT_PASS: ${MQTT_PASS_COLLECTOR_ROUTER}
-      SNMP_COMMUNITY: ${SNMP_COMMUNITY}
-      ROUTER_IP: ${ROUTER_IP}
+    env_file:
+      - ${APP_DATA_DIR}/telegraf-router.env
     volumes:
       - ${APP_DATA_DIR}/telegraf-router.conf:/etc/telegraf/telegraf.conf:ro
 
