@@ -1,6 +1,6 @@
 services:
   camarigor-tdisplay-stack_init:
-    image: ghcr.io/camarigor/tdisplay-init:1.1.1
+    image: ghcr.io/camarigor/tdisplay-init:1.2.0
     user: "0"
     restart: "no"
     security_opt:
@@ -9,7 +9,7 @@ services:
       - ${APP_DATA_DIR}:/app-data
 
   camarigor-tdisplay-stack:
-    image: ghcr.io/camarigor/tdisplay-data-collector:1.1.1
+    image: ghcr.io/camarigor/tdisplay-data-collector:1.2.0
     restart: on-failure
     stop_grace_period: 10s
     read_only: true
