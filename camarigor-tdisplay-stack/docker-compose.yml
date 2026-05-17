@@ -52,11 +52,20 @@ services:
       MQTT_PORT: "1883"
       MQTT_USER: ""
       MQTT_PASS: ""
+      # HOST_MOUNT_PREFIX = telegraf inputs.disk olha o filesystem do host via
+      # /hostfs (mountado abaixo), não o overlayfs do container.
+      HOST_MOUNT_PREFIX: "/hostfs"
+      HOST_PROC: "/host/proc"
+      HOST_SYS: "/host/sys"
+      HOST_ETC: "/host/etc"
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /etc/hostname:/host/etc/hostname:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      # rslave: pega mounts criados depois (ex: novos volumes USB) sem precisar
+      # restart do container.
+      - /:/hostfs:ro,rslave
       - ${APP_DATA_DIR}/telegraf-broker.conf:/etc/telegraf/telegraf.conf:ro
 
   camarigor-tdisplay-stack_telegraf-router:
