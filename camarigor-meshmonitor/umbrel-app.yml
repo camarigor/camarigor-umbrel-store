@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-meshmonitor
 category: networking
 name: MeshMonitor
-version: "4.3.2"
+version: "4.6.0"
 tagline: Self-hosted Meshtastic monitoring with real-time maps, messages, and alerts
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-meshmonitor/icon.png
 description: >-
@@ -52,15 +52,40 @@ path: ""
 defaultUsername: "admin"
 defaultPassword: "changeme"
 releaseNotes: >-
-  v4.3.2: Initial release on the Camarigor store. Uses the upstream
-  `ghcr.io/yeraze/meshmonitor:latest` image. Exposed on port 9003. CORS
-  preconfigured to allow access via http://umbrel.local:9003 and the
-  Umbrel host IP. SQLite database persisted via a named volume so app
-  uninstall/reinstall preserves history.
+  v4.6.0: Major upstream release. Image pinned to ghcr.io/yeraze/meshmonitor:4.6.0
+  (was floating on :latest before).
 
 
-  IMPORTANT: Login as admin / changeme on first boot and change the
-  password immediately. Configure your Meshtastic node IP via the
-  Dashboard → Sources after installation.
+  Highlights since v4.3.2:
+
+  - Embedded MQTT broker that bridges packets bidirectionally between Meshtastic
+    sources, with optional geographic bounding-box filtering for incoming traffic.
+    Interactive map editor lets you draw the bbox visually; a smart initial-bbox
+    heuristic seeds the filter from your already-detected node positions.
+
+  - MeshCore stack: channel and DM messages now persist to the database (history
+    survives restarts), TCP transport default port fixed, channels view gains a
+    CRUD UI for create/edit/delete.
+
+  - Meshtastic neighbor-info display fixed for multi-source deployments — the
+    frontend scopes the fetch to the active source and the backend defensively
+    refreshes lastHeard on MyNodeInfo and configComplete so the freshness filter
+    no longer drops local-node entries mid-session.
+
+  - MeshCore radio parameters no longer corrupted on save (scaling between UI
+    MHz/kHz and wire-format kHz/Hz is now correct).
+
+  - Desktop bundle: fresh installs no longer auto-create a phantom Meshtastic
+    source against the placeholder 192.168.1.100 when only MeshCore companions
+    are configured. MeshCore connect errors surface a real diagnostic instead
+    of `undefined`.
+
+  - Auto-upgrade watchdog health-check timeout raised from 120s to 600s for slow
+    hosts on first boot.
+
+
+  IMPORTANT: Login as admin / changeme on first boot and change the password
+  immediately. Configure your Meshtastic node IP via Dashboard → Sources after
+  installation.
 submitter: camarigor
 submission: ""
