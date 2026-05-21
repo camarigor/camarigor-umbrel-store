@@ -7,7 +7,7 @@ version: "3.7"
 # the four required for the chown step, and data isolated in named volume.
 services:
   camarigor-meshmonitor:
-    image: ghcr.io/yeraze/meshmonitor:4.6.0
+    image: ghcr.io/yeraze/meshmonitor:4.6.3
     restart: on-failure
     stop_grace_period: 30s
     ports:

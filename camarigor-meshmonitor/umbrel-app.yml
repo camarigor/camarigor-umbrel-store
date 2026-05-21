@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-meshmonitor
 category: networking
 name: MeshMonitor
-version: "4.6.0"
+version: "4.6.3"
 tagline: Self-hosted Meshtastic monitoring with real-time maps, messages, and alerts
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-meshmonitor/icon.png
 description: >-
@@ -52,36 +52,73 @@ path: ""
 defaultUsername: "admin"
 defaultPassword: "changeme"
 releaseNotes: >-
-  v4.6.0: Major upstream release. Image pinned to ghcr.io/yeraze/meshmonitor:4.6.0
-  (was floating on :latest before).
+  v4.6.3: Patch release focused on MQTT-source permissions, map visibility, and
+  multi-source UX. Image pinned to ghcr.io/yeraze/meshmonitor:4.6.3.
 
 
-  Highlights since v4.3.2:
+  Highlights since v4.6.0:
 
-  - Embedded MQTT broker that bridges packets bidirectionally between Meshtastic
-    sources, with optional geographic bounding-box filtering for incoming traffic.
-    Interactive map editor lets you draw the bbox visually; a smart initial-bbox
-    heuristic seeds the filter from your already-detected node positions.
 
-  - MeshCore stack: channel and DM messages now persist to the database (history
-    survives restarts), TCP transport default port fixed, channels view gains a
-    CRUD UI for create/edit/delete.
+  v4.6.3 — MQTT permissions + map visibility
 
-  - Meshtastic neighbor-info display fixed for multi-source deployments — the
-    frontend scopes the fetch to the active source and the backend defensively
-    refreshes lastHeard on MyNodeInfo and configComplete so the freshness filter
-    no longer drops local-node entries mid-session.
+  - MQTT ingest now stamps node.channel via channel_database so the map filter
+    honors Virtual Channel Permissions. Previously anonymous and non-admin
+    viewers saw zero nodes on the map for MQTT sources regardless of what was
+    granted.
 
-  - MeshCore radio parameters no longer corrupted on save (scaling between UI
-    MHz/kHz and wire-format kHz/Hz is now correct).
+  - /traceroutes and /neighbor-info endpoints are now channel-gated — no more
+    "floating lines" between coordinates of nodes the user can't see.
 
-  - Desktop bundle: fresh installs no longer auto-create a phantom Meshtastic
-    source against the placeholder 192.168.1.100 when only MeshCore companions
-    are configured. MeshCore connect errors surface a real diagnostic instead
-    of `undefined`.
+  - MeshCore contacts are mirrored to meshcore_nodes on ingest so the remote-
+    telemetry scheduler correctly classifies repeater targets.
 
-  - Auto-upgrade watchdog health-check timeout raised from 120s to 600s for slow
-    hosts on first boot.
+  - Unified Messages preserves tapback metadata (emoji, replyId) across multi-
+    source merges — reactions stop flickering between emoji pills and full
+    inline messages.
+
+  - Puppeteer install failure fixed on Linux LXC / Raspbian baremetal (skips
+    Chrome download via .npmrc).
+
+  - Opt-in MQTT-broker zero-hop injection mode prevents RF rebroadcast of
+    MQTT-bridged packets.
+
+  - Scroll-position-aware infinite scrollback for MeshCore channels with a
+    "Jump to Bottom" button.
+
+
+  v4.6.2 — full MQTT ingest + channel UX
+
+  - MQTT bridges and brokers now ingest the complete set of Meshtastic portnums
+    (text, telemetry, position, nodeinfo, traceroute, neighbor info, paxcounter,
+    store-and-forward) with proper per-source attribution and server-side
+    channel decryption. TCP + MQTT receptions of the same packet now dedup into
+    a single Unified Messages entry.
+
+  - Empty-named slot 0 displays as the modem preset's firmware label
+    (MediumFast, LongFast, etc.) instead of the synthetic "Primary".
+
+  - Channel Database is now genuinely global (PSKs apply across all sources);
+    management moved to Global Settings.
+
+  - MeshCore repeater telemetry restored via SendStatusReq + guest-login
+    fallback.
+
+  - Desktop first-run no longer requires a Meshtastic IP.
+
+
+  v4.6.1 — Meshcore stability + MQTT resilience
+
+  - Meshcore telemetry graphs rendered in DM contact-detail pane.
+
+  - MQTT source editor preserves saved password when field is left blank.
+
+  - MQTT broker ACL restrictions detected and surfaced to the user.
+
+  - mqtt_bridge sources gained a "Prune Outside ROI" maintenance action.
+
+  - MeshCorePage layout fix (fills the dashboard shell).
+
+  - Correct DeviceInfo decoding for nodes that pack a NUL-separated remainder.
 
 
   IMPORTANT: Login as admin / changeme on first boot and change the password
