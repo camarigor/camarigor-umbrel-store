@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-meshmonitor
 category: networking
 name: MeshMonitor
-version: "4.6.3"
+version: "4.6.4"
 tagline: Self-hosted Meshtastic monitoring with real-time maps, messages, and alerts
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-meshmonitor/icon.png
 description: >-
@@ -52,11 +52,41 @@ path: ""
 defaultUsername: "admin"
 defaultPassword: "changeme"
 releaseNotes: >-
-  v4.6.3: Patch release focused on MQTT-source permissions, map visibility, and
-  multi-source UX. Image pinned to ghcr.io/yeraze/meshmonitor:4.6.3.
+  v4.6.4: Patch release focused on MeshCore path management, Passive Mode
+  stability, and a critical MQTT publicKey encoding fix. Image pinned to
+  ghcr.io/yeraze/meshmonitor:4.6.4.
 
 
   Highlights since v4.6.0:
+
+
+  v4.6.4 — MeshCore path management + Passive Mode + MQTT key fix
+
+  - MeshCore per-contact forwarding path is now persisted (migration 068),
+    visible on the contact detail panel (Hops Away + Path bytes), and can be
+    Reset, Shared, live-updated via debounced PathUpdated pushes, or manually
+    edited via the feature-flagged meshcoreAdvancedPathEdit setting.
+
+  - Passive Mode stability on large Meshtastic TCP networks: per-source manual
+    Resync action, startup-grace fast reconnect, per-source staleness override,
+    and createdAt-based chat ordering.
+
+  - Critical fix: MQTT-ingested publicKey values were stored as hex while every
+    other path (serial/TCP/security handshake) used base64, silently triggering
+    false-positive "Key mismatch detected" warnings on every NodeInfo arrival
+    for MQTT-seen nodes. Migration 069 backfills existing hex rows to base64
+    (idempotent across SQLite / PostgreSQL / MySQL).
+
+  - Per-transport visibility toggles: filter the dashboard map and packet
+    monitor by RF / UDP / MQTT independently.
+
+  - New v1 API node-action endpoints, multi-response HTTP auto-responder
+    triggers, and per-message source attribution (source_ip / source_path
+    columns).
+
+  - Safari/iOS text inputs now stay visible above the keyboard accessory bar.
+
+  - MQTT ingest: suppressed duplicate-packet WARN spam.
 
 
   v4.6.3 — MQTT permissions + map visibility
