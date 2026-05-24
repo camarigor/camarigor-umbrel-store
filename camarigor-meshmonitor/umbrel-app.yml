@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-meshmonitor
 category: networking
 name: MeshMonitor
-version: "4.6.4"
+version: "4.6.6"
 tagline: Self-hosted Meshtastic monitoring with real-time maps, messages, and alerts
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-meshmonitor/icon.png
 description: >-
@@ -52,12 +52,44 @@ path: ""
 defaultUsername: "admin"
 defaultPassword: "changeme"
 releaseNotes: >-
-  v4.6.4: Patch release focused on MeshCore path management, Passive Mode
-  stability, and a critical MQTT publicKey encoding fix. Image pinned to
-  ghcr.io/yeraze/meshmonitor:4.6.4.
+  v4.6.6: Patch release with MQTT Bridge dashboard, unified-view node merging,
+  and several user-reported fixes. No migrations — drop-in upgrade. Image pinned
+  to ghcr.io/yeraze/meshmonitor:4.6.6.
 
 
   Highlights since v4.6.0:
+
+
+  v4.6.6 — bug fixes + blog/docs polish
+
+  - Show UDP / Show RF map filters now correctly hide neighbor-info lines.
+
+  - Router role in Remote Admin → Device Configuration no longer silently
+    reverts; the fragile native confirm() was replaced with a persistent inline
+    warning banner.
+
+  - The red "auto-upgrade halted" banner now self-heals after a successful
+    auto-update completes (clears on the next status poll).
+
+
+  v4.6.5 — MQTT Bridge dashboard + cross-source fixes
+
+  - MQTT Bridge sources get their own "Open" button rendering a read-only mirror
+    of the Meshtastic dashboard — every transmit surface (send composers, DM
+    action buttons, Device Config, Remote Admin, Automation) is suppressed since
+    bridges ingest but never send.
+
+  - MeshCore telemetry tab added to the source-agnostic dashboard.
+
+  - Unified Nodes view now merges per-source rows by nodeNum — a node heard on
+    both an RF source and an MQTT-bridged source no longer appears twice (once
+    labeled, once as "Node <num>"); newest lastHeard wins, empty fields are
+    back-filled, favorite/ignored flags OR'd across sources.
+
+  - DM no longer flags PKI when keyMismatchDetected (firmware may legitimately
+    lack the key after a purge — flagging marked valid sessions as compromised).
+
+  - Standalone mqtt_bridge sources are now valid client-proxy mqttLink targets.
 
 
   v4.6.4 — MeshCore path management + Passive Mode + MQTT key fix
