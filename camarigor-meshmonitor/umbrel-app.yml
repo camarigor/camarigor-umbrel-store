@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-meshmonitor
 category: networking
 name: MeshMonitor
-version: "4.6.6"
+version: "4.7.2"
 tagline: Self-hosted Meshtastic monitoring with real-time maps, messages, and alerts
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-meshmonitor/icon.png
 description: >-
@@ -52,12 +52,59 @@ path: ""
 defaultUsername: "admin"
 defaultPassword: "changeme"
 releaseNotes: >-
-  v4.6.6: Patch release with MQTT Bridge dashboard, unified-view node merging,
-  and several user-reported fixes. No migrations — drop-in upgrade. Image pinned
-  to ghcr.io/yeraze/meshmonitor:4.6.6.
+  v4.7.2: Minor series (4.7) adding MeshCore Remote Administration, MQTT bridge
+  topic rewriting + direction modes, and Channel Database robustness fixes.
+  Migrations 070 + 071 run automatically on boot. Image pinned to
+  ghcr.io/yeraze/meshmonitor:4.7.2.
 
 
-  Highlights since v4.6.0:
+  Highlights since v4.6.6:
+
+
+  v4.7.2 — Channel DB robustness + validation
+
+  - Import channels from a Meshtastic URL: paste a meshtastic.org/e/# link and
+    select which channels to save as virtual decryption-key rows.
+
+  - MQTT bridge direction mode (publish_only / subscribe_only / bidirectional)
+    silences permission-denied spam on public servers that reject SUBSCRIBE.
+
+  - Channel Database no longer crashes the MQTT default-channel bootstrap on
+    pre-v3.7 SQLite installs (migration 071 drops the legacy psk_length CHECK
+    constraint; no-op for fresh / PG / MySQL installs).
+
+  - Messages now sort by server-side receipt time, so nodes with bad clocks
+    (year 1970 / 2065) no longer sink to the bottom of channel and DM lists.
+
+  - Hardening: destination routes reject out-of-range nodeNum and resolve
+    64-hex publicKey lookups (fixes a Postgres bigint overflow crash). API
+    note: destination fields now return HTTP 400 for malformed inputs.
+
+
+  v4.7.1 — per-source Channels fix
+
+  - The per-source Channels tab no longer inflates its list with global Channel
+    Database rows (server-side MQTT decryption PSKs). A Sandbox source with 3
+    real channels stops showing ~25 unrelated MQTT-bridge channel names.
+
+
+  v4.7.0 — MeshCore Remote Administration + MQTT topic rewriting
+
+  - MeshCore Remote Administration: full CLI-over-encrypted-DM admin surface for
+    distant Repeaters / Room Servers, plus an in-app console for the local
+    device. Encrypted password store with rotation detection, typed-name
+    confirmation for destructive commands, ACL setperm form, and a per-command
+    audit log. Gated by a new per-source remote_admin permission (admins pass
+    automatically). Saving passwords requires SESSION_SECRET set explicitly.
+
+  - MQTT bridge topic rewriting (cross-mesh prefix replacement), configured from
+    the broker's edit modal so one dialog covers every bridge on that broker.
+
+  - MQTT dashboard restored: broker and bridge sources fall through to the full
+    Meshtastic dashboard (Channels / Telemetry / DMs / Map) again, reverting the
+    experimental thin per-source shell.
+
+  - Migration 070 adds a nullable adminCredential column to meshcore_nodes.
 
 
   v4.6.6 — bug fixes + blog/docs polish
