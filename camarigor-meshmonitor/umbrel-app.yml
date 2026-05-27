@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-meshmonitor
 category: networking
 name: MeshMonitor
-version: "4.7.2"
+version: "4.7.4"
 tagline: Self-hosted Meshtastic monitoring with real-time maps, messages, and alerts
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-meshmonitor/icon.png
 description: >-
@@ -52,13 +52,48 @@ path: ""
 defaultUsername: "admin"
 defaultPassword: "changeme"
 releaseNotes: >-
-  v4.7.2: Minor series (4.7) adding MeshCore Remote Administration, MQTT bridge
-  topic rewriting + direction modes, and Channel Database robustness fixes.
-  Migrations 070 + 071 run automatically on boot. Image pinned to
-  ghcr.io/yeraze/meshmonitor:4.7.2.
+  v4.7.4: Patch release with MQTT bridge enhancements (per-gateway publisher
+  pool, ok_to_mqtt honoring), MeshCore protocol completeness, and multi-source
+  fixes. No new migrations — drop-in from 4.7.2. Image pinned to
+  ghcr.io/yeraze/meshmonitor:4.7.4.
 
 
   Highlights since v4.6.6:
+
+
+  v4.7.4 — MeshCore protocol + multi-source
+
+  - MQTT Bridge can now be created without a pre-existing Broker source.
+
+  - Copy NodeInfo from another source — enriches a node's name/keys across
+    sources for cross-source PKI DM and NodeDB pre-population.
+
+  - Clipboard operations fall back gracefully in non-HTTPS contexts (useful
+    when accessing MeshMonitor over plain HTTP on the LAN).
+
+  - MeshCore Tier 1/2: contact remove/export/import via meshcore:// URLs,
+    repeater neighbour lists, device time sync, danger-gated reboot, Ed25519
+    key backup/restore, room server integration, per-hop SNR trace, TX power
+    config in the UI.
+
+
+  v4.7.3 — MQTT bridge enhancements + per-source fixes
+
+  - MQTT bridge: per-gateway publisher pool (default on), honors the ok_to_mqtt
+    bit on uplink (default on), and direction-mode dropdown for quiet
+    publish-only public servers.
+
+  - Message sorting uses server-side receipt time instead of the sender clock,
+    preventing out-of-order display from nodes with bad RTCs.
+
+  - Per-source scoping fixes: security-key display in Device Configuration,
+    channel-database visibility, and permission-grid rendering now respect the
+    active source.
+
+  - Connection permission split into separate Read/Write checkboxes; unified
+    pages can be set as the default landing destination.
+
+  - Auto-upgrade check is skipped while migrations are still running.
 
 
   v4.7.2 — Channel DB robustness + validation
