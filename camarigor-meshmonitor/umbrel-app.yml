@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-meshmonitor
 category: networking
 name: MeshMonitor
-version: "4.7.4"
+version: "4.8.0"
 tagline: Self-hosted Meshtastic monitoring with real-time maps, messages, and alerts
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-meshmonitor/icon.png
 description: >-
@@ -52,13 +52,32 @@ path: ""
 defaultUsername: "admin"
 defaultPassword: "changeme"
 releaseNotes: >-
-  v4.7.4: Patch release with MQTT bridge enhancements (per-gateway publisher
-  pool, ok_to_mqtt honoring), MeshCore protocol completeness, and multi-source
-  fixes. No new migrations — drop-in from 4.7.2. Image pinned to
-  ghcr.io/yeraze/meshmonitor:4.7.4.
+  v4.8.0: Minor release focused on MeshCore path intelligence and UX, plus MQTT
+  reconnection and map/node management improvements. No migrations — drop-in
+  from 4.7.4. Image pinned to ghcr.io/yeraze/meshmonitor:4.8.0.
 
 
   Highlights since v4.6.6:
+
+
+  v4.8.0 — MeshCore path intelligence + MQTT/map fixes
+
+  - Shared MQTT reconnect coordinator: prevents aggregate retry storms when
+    multiple publisher-pool clients target the same broker.
+
+  - Map node management: Delete/Purge buttons in the map popup to remove stale
+    nodes from the map and database in one click.
+
+  - Auto-upgrade: fixed false circuit-breaker trips when the watchdog upgrade
+    actually succeeded (the row no longer stays "pending").
+
+  - Neighbor links now classified by transport type (RF / UDP / unknown) and
+    filterable on the map.
+
+  - MeshCore (não usado em deployments só-Meshtastic): Show Paths with
+    hop-count colored lines, Discover Path + auto-pathfinding automation tab,
+    repeater neighbor collection, @mention highlighting + delivery status in
+    DMs, node search/navigation, and a mobile-responsive layout.
 
 
   v4.7.4 — MeshCore protocol + multi-source
