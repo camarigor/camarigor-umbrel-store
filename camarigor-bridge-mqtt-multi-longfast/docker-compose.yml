@@ -37,7 +37,7 @@ services:
             echo "BRIDGE1_REMOTE_CHANNEL=LongFast"
             echo ""
             echo "# Bridge 2 — second public server. Device channel LongFastCO (hash rewrite)."
-            echo "BRIDGE2_NAME=usco"
+            echo "BRIDGE2_NAME=meshtastic"
             echo "BRIDGE2_LOCAL_CHANNEL=LongFastCO"
             echo "BRIDGE2_REMOTE_HOST=mqtt.meshtastic.org"
             echo "BRIDGE2_REMOTE_PORT=1883"
