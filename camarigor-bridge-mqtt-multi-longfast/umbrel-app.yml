@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-bridge-mqtt-multi-longfast
 category: networking
 name: Bridge MQTT Multi-LongFast
-version: "1.2.0"
+version: "1.3.0"
 tagline: Be on the public LongFast of two Meshtastic MQTT servers from one device
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-bridge-mqtt-multi-longfast/icon.png
 description: >-
@@ -55,9 +55,11 @@ path: ""
 defaultUsername: ""
 defaultPassword: ""
 releaseNotes: >-
-  v1.2.0: Initial release on the Camarigor store. Republishes a Meshtastic
-  channel between two MQTT servers so one device can be on the public LongFast of
-  each and choose per message. Includes a minimal HTTP status page. Configure
-  bridge.env after install (see description) and restart.
+  v1.3.0: Multi-bridge router. The app now connects to the local broker plus each
+  remote server (BRIDGE1, BRIDGE2, … in bridge.env), so one device can be on the
+  public LongFast of several servers (e.g. meshbrasil + mqtt.meshtastic.org) and
+  choose per message via the channel. The local broker (mosquitto) is now just the
+  local hub — no bridges needed there. Unique client-ids avoid broker kick-loops.
+  Status page lists all bridges. Configure bridge.env after install and restart.
 submitter: camarigor
 submission: ""
