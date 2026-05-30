@@ -1,0 +1,60 @@
+version: "3.7"
+
+services:
+  # Seeds a config template under the app data dir on first run, with the right
+  # ownership. Secrets live ONLY here on your Umbrel — never in this public repo.
+  camarigor-bridge-mqtt-multi-longfast_init:
+    image: busybox:stable
+    user: "0"
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /app-data/data
+        if [ ! -f /app-data/data/bridge.env ]; then
+          {
+            echo "# bridge-mqtt-multi-longfast config — fill in the CHANGE_ME values,"
+            echo "# then restart this app. This file lives only on your Umbrel."
+            echo ""
+            echo "# Local mosquitto (the Umbrel broker your Meshtastic device publishes to):"
+            echo "LOCAL_MQTT_HOST=CHANGE_ME"
+            echo "LOCAL_MQTT_USER=CHANGE_ME"
+            echo "LOCAL_MQTT_PASS=CHANGE_ME"
+            echo "LOCAL_ROOT=meshdev"
+            echo "LOCAL_CHANNEL=LongFastCO"
+            echo ""
+            echo "# Remote public Meshtastic MQTT (defaults target mqtt.meshtastic.org):"
+            echo "REMOTE_MQTT_HOST=mqtt.meshtastic.org"
+            echo "REMOTE_MQTT_USER=meshdev"
+            echo "REMOTE_MQTT_PASS=large4cats"
+            echo "REMOTE_ROOT=msh/US/CO"
+            echo "REMOTE_CHANNEL=LongFast"
+          } > /app-data/data/bridge.env
+        fi
+        chown -R 1000:1000 /app-data
+    volumes:
+      - ${APP_DATA_DIR}:/app-data
+
+  camarigor-bridge-mqtt-multi-longfast:
+    image: ghcr.io/camarigor/bridge-mqtt-multi-longfast:1.2.0
+    restart: on-failure
+    stop_grace_period: 30s
+    depends_on:
+      camarigor-bridge-mqtt-multi-longfast_init:
+        condition: service_completed_successfully
+    environment:
+      BRIDGE_ENV_FILE: /data/bridge.env
+      STATUS_PORT: "8080"
+    ports:
+      - "9004:8080"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - ${APP_DATA_DIR}/data:/data
