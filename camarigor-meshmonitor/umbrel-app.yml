@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-meshmonitor
 category: networking
 name: MeshMonitor
-version: "4.8.0"
+version: "4.8.1"
 tagline: Self-hosted Meshtastic monitoring with real-time maps, messages, and alerts
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-meshmonitor/icon.png
 description: >-
@@ -52,12 +52,29 @@ path: ""
 defaultUsername: "admin"
 defaultPassword: "changeme"
 releaseNotes: >-
-  v4.8.0: Minor release focused on MeshCore path intelligence and UX, plus MQTT
-  reconnection and map/node management improvements. No migrations — drop-in
-  from 4.7.4. Image pinned to ghcr.io/yeraze/meshmonitor:4.8.0.
+  v4.8.1: Patch release with a key TCP connection-stability fix, MeshCore
+  automations, and CodeQL security hardening. No migrations — drop-in from 4.8.0.
+  Image pinned to ghcr.io/yeraze/meshmonitor:4.8.1.
 
 
   Highlights since v4.6.6:
+
+
+  v4.8.1 — TCP stability + automations + security
+
+  - Fixes a deterministic 3×/min reconnect loop on TCP Meshtastic sources: a
+    transport-swap race during handleConnected tore down healthy TCP sessions
+    ("Transport not initialized"). Relevant if MeshMonitor connects to your node
+    over TCP.
+
+  - MeshCore automation suite: Auto-Announce (templated status broadcasts on
+    interval/cron), Auto-Responder (regex-matched replies, per-sender cooldown),
+    Timer Triggers, and Auto-Acknowledge — all with shared token expansion.
+
+  - Security hardening (CodeQL): polynomial-ReDoS / regex-DoS / log-injection
+    fixes, plus MeshCore neighbor publicKey input validation.
+
+  - Translations refresh from Hosted Weblate.
 
 
   v4.8.0 — MeshCore path intelligence + MQTT/map fixes
