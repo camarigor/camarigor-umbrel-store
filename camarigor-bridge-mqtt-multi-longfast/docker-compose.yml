@@ -45,6 +45,11 @@ services:
             echo "BRIDGE2_REMOTE_PASS=large4cats"
             echo "BRIDGE2_REMOTE_ROOT=msh/US/CO"
             echo "BRIDGE2_REMOTE_CHANNEL=LongFast"
+            echo "# Some servers (e.g. a regional mqtt.meshtastic.org root) publish"
+            echo "# DECODED (plaintext) packets, so encrypted relays are invisible to"
+            echo "# their nodes. With this true, the app decrypts outbound packets to"
+            echo "# plaintext (public PSK only) and relays their plaintext inbound."
+            echo "BRIDGE2_REMOTE_DECODED=true"
           } > /app-data/data/bridge.env
         fi
         chown -R 1000:1000 /app-data
@@ -52,7 +57,7 @@ services:
       - ${APP_DATA_DIR}:/app-data
 
   camarigor-bridge-mqtt-multi-longfast:
-    image: ghcr.io/camarigor/bridge-mqtt-multi-longfast:1.3.0
+    image: ghcr.io/camarigor/bridge-mqtt-multi-longfast:1.4.0
     restart: on-failure
     stop_grace_period: 30s
     depends_on:
