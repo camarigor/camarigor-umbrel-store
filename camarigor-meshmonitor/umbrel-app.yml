@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-meshmonitor
 category: networking
 name: MeshMonitor
-version: "4.8.1"
+version: "4.9.0"
 tagline: Self-hosted Meshtastic monitoring with real-time maps, messages, and alerts
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-meshmonitor/icon.png
 description: >-
@@ -52,12 +52,71 @@ path: ""
 defaultUsername: "admin"
 defaultPassword: "changeme"
 releaseNotes: >-
-  v4.8.1: Patch release with a key TCP connection-stability fix, MeshCore
-  automations, and CodeQL security hardening. No migrations — drop-in from 4.8.0.
-  Image pinned to ghcr.io/yeraze/meshmonitor:4.8.1.
+  v4.9.0: Feature release — low-battery alerts for monitored nodes and an
+  airtime-utilization cutoff that auto-pauses bot automations while the mesh is
+  busy. Telemetry graphs gain a 15m–7d time-range selector, automations a
+  {LAST_HOP} variable, and the per-source ignore list is now authoritative.
+  Includes the v4.8.2/v4.8.3 patches (packet monitors, MeshCore discovery, MQTT
+  bridge Configuration page). Fixes MQTT environment telemetry visibility (with
+  repair migration) and a PostgreSQL HTTP 500 on telemetry graphs. Image pinned
+  to ghcr.io/yeraze/meshmonitor:4.9.0.
 
 
   Highlights since v4.6.6:
+
+
+  v4.9.0 — mesh health + polite automations
+
+  - Low-battery alerts for monitored nodes: Apprise / Web Push / Desktop
+    notification when a monitored node's battery drops below a configurable
+    threshold.
+
+  - Airtime-utilization cutoff: a threshold on the Automation page pauses all
+    transmitting automations (auto-traceroute, auto-announce, timers) while the
+    connected node's Channel Utilization is high, resuming when the mesh quiets
+    down. Live status banner; manual sends are never blocked.
+
+  - Telemetry time-range selector (15m–7d) on the Device Info graphs,
+    remembered per browser, with averaging that scales across long windows on
+    every database backend.
+
+  - {LAST_HOP} automation variable resolves the last relay node (short name,
+    falling back to hex byte) in autoresponder/auto-ack templates.
+
+  - Ignored-node auto-reapply: the per-source ignore list is authoritative,
+    re-applying (and re-pushing to the radio) the ignore flag when a device
+    drops it.
+
+  - Fixes: MQTT environment telemetry visible again (keys normalized to match
+    serial ingestion + migration repairs history); PostgreSQL GROUP BY error
+    that returned HTTP 500 on telemetry graphs (Postgres regression test added
+    to CI); Apprise second-source UNIQUE constraint; API rate limiter now
+    exempts RFC 1918 / loopback IPs.
+
+
+  v4.8.3 — MeshCore discovery + MQTT bridge Configuration page
+
+  - Discover Nearby Nodes / Discover Repeaters sweep for MeshCore devices in
+    zero-hop RF range, and the node now answers inbound discovery requests too.
+
+  - MQTT bridges get a dedicated Configuration page (connection, forwarding,
+    subscribe/publish filters with per-bridge publish filter, topic rewrites);
+    the per-source edit modal slims down to connection basics.
+
+  - Fixes: MeshCore private key validation at 128 hex chars (accepts
+    firmware-exported keys), adding new hashtag channels, and a transport-level
+    orphan-reconnect flap on TCP sources.
+
+
+  v4.8.2 — packet observability
+
+  - Unified Packet Monitor aggregating activity across every connected source,
+    plus a MeshCore Packet Monitor (OTA capture via LogRxData) with
+    click-to-open packet decoding and hashtag channel support.
+
+  - Telemetry auto-scales current/power units and humanizes uptime; dashboard
+    map gains rich per-source/per-protocol node popups and a persisted Show
+    Waypoints toggle; configurable traceroute history limit.
 
 
   v4.8.1 — TCP stability + automations + security
