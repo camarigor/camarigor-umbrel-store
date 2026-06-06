@@ -1,0 +1,91 @@
+manifestVersion: 1
+id: camarigor-stream
+category: media
+name: Stream
+version: "1.0.0"
+tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
+icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
+description: >-
+  Stream is a complete media automation stack in a single Umbrel app:
+  request movies and TV shows through Jellyseerr, downloads happen
+  automatically and the content shows up in Jellyfin with pt-BR subtitles.
+
+
+  Components:
+
+  - Jellyfin (8096): media server with Intel Quick Sync hardware
+    acceleration (/dev/dri, HEVC/H.264/AV1 decode).
+
+  - Jellyseerr (5055): Netflix-style request interface, logs in with
+    Jellyfin accounts.
+
+  - Sonarr (8989) / Radarr (7878): TV show and movie automation.
+
+  - Bazarr (6767): automatic pt-BR subtitles.
+
+  - Prowlarr (9696): central indexer management (public and private),
+    syncs with Sonarr/Radarr.
+
+  - qBittorrent (8082): download client.
+
+  - FlareSolverr (internal): Cloudflare bypass for public indexers.
+
+  - cross-seed (internal): re-seeds the same files on other trackers
+    (ratio building on private trackers) without re-downloading, via
+    hardlinks.
+
+
+  Data layout (single volume — hardlinks between downloads and library,
+  no duplicated disk space):
+
+  - data/torrents/{movies,tv}: downloads
+
+  - data/media/{movies,tv}: library read by Jellyfin
+
+
+  Post-install setup (detailed in the app README in the store repo):
+
+  1. qBittorrent: grab the temporary password from the logs, change it,
+     create the movies/tv categories.
+
+  2. Prowlarr: add indexers + FlareSolverr (http://flaresolverr:8191)
+     and connect Sonarr/Radarr.
+
+  3. Sonarr/Radarr: root folders /data/media/{tv,movies} + download
+     client qbittorrent:8080.
+
+  4. Bazarr: Portuguese (Brazil) language profile + providers.
+
+  5. Jellyfin: wizard, libraries /media/{movies,tv}, enable QSV.
+
+  6. Jellyseerr: connect to Jellyfin + Radarr/Sonarr.
+
+  7. cross-seed: edit config/cross-seed/config.js (qBittorrent + Prowlarr
+     Torznab) and restart the app.
+developer: camarigor
+website: https://github.com/camarigor/camarigor-umbrel-store
+support: https://github.com/camarigor/camarigor-umbrel-store/issues
+dependencies: []
+port: 8096
+gallery: []
+path: ""
+releaseNotes: >-
+  v1.0.0: Initial release.
+
+
+  - 9 services in a single app: Jellyfin, Jellyseerr, Sonarr, Radarr,
+    Bazarr, Prowlarr, qBittorrent, FlareSolverr, cross-seed.
+
+  - Single /data volume with hardlink imports (zero copy, continuous
+    seeding).
+
+  - Quick Sync (Intel N150) enabled in Jellyfin via /dev/dri
+    (group_add 991).
+
+  - qBittorrent web UI on host port 8082 (8080 already in use on the
+    Umbrel host).
+
+  - Hardening: no-new-privileges on every service; cross-seed runs as
+    non-root user 1000; FlareSolverr and cross-seed expose no host ports.
+submitter: camarigor
+submission: ""

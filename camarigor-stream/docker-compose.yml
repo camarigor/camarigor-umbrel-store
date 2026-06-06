@@ -1,0 +1,233 @@
+services:
+  init:
+    image: busybox:stable
+    user: "0"
+    restart: "no"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        mkdir -p \
+          /app-data/config/jellyfin \
+          /app-data/config/jellyseerr \
+          /app-data/config/sonarr \
+          /app-data/config/radarr \
+          /app-data/config/bazarr \
+          /app-data/config/prowlarr \
+          /app-data/config/qbittorrent \
+          /app-data/config/cross-seed \
+          /app-data/data/torrents/movies \
+          /app-data/data/torrents/tv \
+          /app-data/data/torrents/cross-seed \
+          /app-data/data/media/movies \
+          /app-data/data/media/tv
+        chown 1000:1000 \
+          /app-data/config \
+          /app-data/config/jellyfin \
+          /app-data/config/jellyseerr \
+          /app-data/config/sonarr \
+          /app-data/config/radarr \
+          /app-data/config/bazarr \
+          /app-data/config/prowlarr \
+          /app-data/config/qbittorrent \
+          /app-data/config/cross-seed \
+          /app-data/data \
+          /app-data/data/torrents \
+          /app-data/data/torrents/movies \
+          /app-data/data/torrents/tv \
+          /app-data/data/torrents/cross-seed \
+          /app-data/data/media \
+          /app-data/data/media/movies \
+          /app-data/data/media/tv
+    volumes:
+      - ${APP_DATA_DIR}:/app-data
+
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    restart: on-failure
+    stop_grace_period: 30s
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: America/Sao_Paulo
+      UMASK: "002"
+    # Intel N150 iGPU: Quick Sync via VAAPI/QSV. GID 991 = host `render`
+    # group (verified on the target host, 2026-06-05).
+    group_add:
+      - "991"
+    devices:
+      - /dev/dri:/dev/dri
+    ports:
+      - "8096:8096"
+    volumes:
+      - ${APP_DATA_DIR}/config/jellyfin:/config
+      - ${APP_DATA_DIR}/data/media:/media:ro
+
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    restart: on-failure
+    # Run as non-root: the image defaults to root and litters the bind
+    # mount with root-owned files (found during local testing 2026-06-05).
+    user: "1000:1000"
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      TZ: America/Sao_Paulo
+      PORT: "5055"
+    ports:
+      - "5055:5055"
+    volumes:
+      - ${APP_DATA_DIR}/config/jellyseerr:/app/config
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    restart: on-failure
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: America/Sao_Paulo
+      UMASK: "002"
+    ports:
+      - "8989:8989"
+    volumes:
+      - ${APP_DATA_DIR}/config/sonarr:/config
+      - ${APP_DATA_DIR}/data:/data
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    restart: on-failure
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: America/Sao_Paulo
+      UMASK: "002"
+    ports:
+      - "7878:7878"
+    volumes:
+      - ${APP_DATA_DIR}/config/radarr:/config
+      - ${APP_DATA_DIR}/data:/data
+
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    restart: on-failure
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: America/Sao_Paulo
+      UMASK: "002"
+    ports:
+      - "6767:6767"
+    volumes:
+      - ${APP_DATA_DIR}/config/bazarr:/config
+      - ${APP_DATA_DIR}/data:/data
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    restart: on-failure
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: America/Sao_Paulo
+      UMASK: "002"
+    ports:
+      - "9696:9696"
+    volumes:
+      - ${APP_DATA_DIR}/config/prowlarr:/config
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    restart: on-failure
+    stop_grace_period: 30s
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: America/Sao_Paulo
+      UMASK: "002"
+      # 8082 inside AND outside: host port 8080 is taken on the target
+      # host, and qBittorrent's Host-header validation rejects requests
+      # whose Host port differs from the WebUI port (verified empirically
+      # 2026-06-05) — remapping 8082->8080 returns a bare 401.
+      WEBUI_PORT: "8082"
+      TORRENTING_PORT: "6881"
+    ports:
+      - "8082:8082"
+      - "6881:6881"
+      - "6881:6881/udp"
+    volumes:
+      - ${APP_DATA_DIR}/config/qbittorrent:/config
+      - ${APP_DATA_DIR}/data:/data
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    restart: on-failure
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      LOG_LEVEL: info
+      TZ: America/Sao_Paulo
+    # No ports: only reached by Prowlarr over the internal network
+    # (http://flaresolverr:8191).
+
+  cross-seed:
+    image: ghcr.io/cross-seed/cross-seed:6
+    restart: on-failure
+    user: "1000:1000"
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      TZ: America/Sao_Paulo
+    # First start: generates the /config/config.js template (gen-config)
+    # which the user fills in post-install. The daemon restart-loops until
+    # the config points to valid qBittorrent/Prowlarr endpoints (same
+    # edit-and-restart pattern as camarigor-tdisplay-stack).
+    entrypoint:
+      - /bin/sh
+      - -c
+      - '[ -f /config/config.js ] || cross-seed gen-config; exec cross-seed daemon'
+    volumes:
+      - ${APP_DATA_DIR}/config/cross-seed:/config
+      - ${APP_DATA_DIR}/data:/data
+    # No ports: internal webhook only (qbittorrent -> http://cross-seed:2468).
