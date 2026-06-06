@@ -73,7 +73,9 @@ services:
       - ${APP_DATA_DIR}/data/media:/media:ro
 
   jellyseerr:
-    image: fallenbagel/jellyseerr:latest
+    # Seerr is the renamed successor of Jellyseerr (fallenbagel/jellyseerr
+    # froze at 2.7.3); pinned tag — bump deliberately via store updates.
+    image: seerr/seerr:v3.3.0
     restart: on-failure
     # Run as non-root: the image defaults to root and litters the bind
     # mount with root-owned files (found during local testing 2026-06-05).

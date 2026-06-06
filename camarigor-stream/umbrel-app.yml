@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.0.0"
+version: "1.1.0"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -70,6 +70,12 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.1.0: Jellyseerr upgraded to Seerr v3.3.0 (the renamed successor —
+  fallenbagel/jellyseerr image froze at 2.7.3). Database is migrated
+  automatically on first start; v3 also fixes the *arr tag format
+  incompatibility with Radarr 6.x. Image now pinned (seerr/seerr:v3.3.0).
+
+
   v1.0.0: Initial release.
 
 
