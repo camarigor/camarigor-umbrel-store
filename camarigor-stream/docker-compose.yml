@@ -196,19 +196,23 @@ services:
       - ${APP_DATA_DIR}/config/qbittorrent:/config
       - ${APP_DATA_DIR}/data:/data
 
-  flaresolverr:
-    image: ghcr.io/flaresolverr/flaresolverr:latest
+  byparr:
+    # FlareSolverr drop-in (nodriver/Camoufox engine) — solves the Cloudflare
+    # "managed challenge" loops that FlareSolverr's undetected-chromedriver
+    # fails on (e.g. 1337x). Same /v1 API on :8191; needs shm_size for the
+    # headless browser. Verified to work under no-new-privileges (2026-06-07).
+    image: ghcr.io/thephaseless/byparr:latest
     restart: on-failure
+    shm_size: "2gb"
     depends_on:
       init:
         condition: service_completed_successfully
     security_opt:
       - no-new-privileges:true
     environment:
-      LOG_LEVEL: info
       TZ: America/Sao_Paulo
     # No ports: only reached by Prowlarr over the internal network
-    # (http://flaresolverr:8191).
+    # (http://byparr:8191).
 
   cross-seed:
     image: ghcr.io/cross-seed/cross-seed:6

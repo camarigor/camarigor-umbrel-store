@@ -1,7 +1,7 @@
 # Stream — Umbrel media stack
 
 Single app: Jellyfin + Jellyseerr + Sonarr + Radarr + Bazarr + Prowlarr +
-qBittorrent + FlareSolverr + cross-seed.
+qBittorrent + Byparr + cross-seed.
 
 ## UIs (host `umbrel`)
 
@@ -15,7 +15,7 @@ qBittorrent + FlareSolverr + cross-seed.
 | Prowlarr | `http://<umbrel-ip>:9696` | Indexers config |
 | qBittorrent | `http://<umbrel-ip>:8082` | Torrent client |
 
-FlareSolverr and cross-seed have no exposed UI (internal only).
+Byparr and cross-seed have no exposed UI (internal only).
 
 ## Post-install setup (order matters)
 
@@ -32,10 +32,11 @@ FlareSolverr and cross-seed have no exposed UI (internal only).
 ### 2. Prowlarr (`:9696`)
 
 1. Create user/password on first access (Authentication: Forms).
-2. Settings → Indexers → Add → **FlareSolverr**: Host
-   `http://flaresolverr:8191`, Tag `flaresolverr`.
+2. Settings → Indexers → Add Indexer Proxy → **FlareSolverr** (Byparr is
+   API-compatible, so the proxy type stays "FlareSolverr"): Host
+   `http://byparr:8191`, Tag `byparr`.
 3. Indexers → Add: register your public indexers (apply the
-   `flaresolverr` tag on Cloudflare-protected ones) and private trackers
+   `byparr` tag on Cloudflare-protected ones) and private trackers
    (tracker API key).
 4. Settings → Apps → Add:
    - **Sonarr**: Prowlarr Server `http://prowlarr:9696`, Sonarr Server

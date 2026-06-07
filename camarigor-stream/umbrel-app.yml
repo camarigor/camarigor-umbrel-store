@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.1.0"
+version: "1.2.0"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -28,7 +28,8 @@ description: >-
 
   - qBittorrent (8082): download client.
 
-  - FlareSolverr (internal): Cloudflare bypass for public indexers.
+  - Byparr (internal): Cloudflare bypass for public indexers
+    (FlareSolverr-compatible API, stronger anti-bot engine).
 
   - cross-seed (internal): re-seeds the same files on other trackers
     (ratio building on private trackers) without re-downloading, via
@@ -48,8 +49,8 @@ description: >-
   1. qBittorrent: grab the temporary password from the logs, change it,
      create the movies/tv categories.
 
-  2. Prowlarr: add indexers + FlareSolverr (http://flaresolverr:8191)
-     and connect Sonarr/Radarr.
+  2. Prowlarr: add indexers + Byparr (Indexer Proxy type "FlareSolverr",
+     Host http://byparr:8191) and connect Sonarr/Radarr.
 
   3. Sonarr/Radarr: root folders /data/media/{tv,movies} + download
      client qbittorrent:8080.
@@ -70,6 +71,13 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.2.0: Replaced FlareSolverr with Byparr (ghcr.io/thephaseless/byparr),
+  a drop-in replacement with a stronger anti-bot engine (nodriver/Camoufox)
+  that solves the Cloudflare "managed challenge" loops FlareSolverr fails on
+  (e.g. 1337x). Same FlareSolverr :8191 API — after updating, set the
+  Prowlarr Indexer Proxy (type FlareSolverr) Host to http://byparr:8191.
+
+
   v1.1.0: Jellyseerr upgraded to Seerr v3.3.0 (the renamed successor —
   fallenbagel/jellyseerr image froze at 2.7.3). Database is migrated
   automatically on first start; v3 also fixes the *arr tag format
