@@ -47,7 +47,10 @@ services:
       - ${APP_DATA_DIR}:/app-data
 
   jellyfin:
-    image: lscr.io/linuxserver/jellyfin:10.11.11-ls36
+    # linuxserver has no reliable semver-ls tag via the registry API for
+    # jellyfin (10.11.11-ls36 exists on Docker Hub but 404s on lscr.io/GHCR,
+    # where this pulls from) — pinned by the lscr.io :latest digest (= 10.11.11).
+    image: lscr.io/linuxserver/jellyfin@sha256:c123ef2f82195e377d8ca3df275f13f9dfa5c6e61b195958662b42b5e54362ab
     restart: on-failure
     stop_grace_period: 30s
     depends_on:

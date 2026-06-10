@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.3.0"
+version: "1.3.1"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -71,6 +71,13 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.3.1: Hotfix — the v1.3.0 Jellyfin pin (10.11.11-ls36) existed only on
+  Docker Hub, not on lscr.io/GHCR where this app actually pulls from, so the
+  image pull failed and the Umbrel update stalled with all services down.
+  Jellyfin is now pinned by its lscr.io :latest digest (= 10.11.11); every
+  other pin was verified to exist on the registry.
+
+
   v1.3.0: Pinned every image to an explicit, immutable version instead of
   the floating ":latest"/":6" tags — deterministic, reproducible deploys
   where the version listed here is exactly what runs, and updates are
