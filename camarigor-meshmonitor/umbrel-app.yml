@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-meshmonitor
 category: networking
 name: MeshMonitor
-version: "4.9.0"
+version: "4.9.4"
 tagline: Self-hosted Meshtastic monitoring with real-time maps, messages, and alerts
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-meshmonitor/icon.png
 description: >-
@@ -52,17 +52,78 @@ path: ""
 defaultUsername: "admin"
 defaultPassword: "changeme"
 releaseNotes: >-
-  v4.9.0: Feature release — low-battery alerts for monitored nodes and an
-  airtime-utilization cutoff that auto-pauses bot automations while the mesh is
-  busy. Telemetry graphs gain a 15m–7d time-range selector, automations a
-  {LAST_HOP} variable, and the per-source ignore list is now authoritative.
-  Includes the v4.8.2/v4.8.3 patches (packet monitors, MeshCore discovery, MQTT
-  bridge Configuration page). Fixes MQTT environment telemetry visibility (with
-  repair migration) and a PostgreSQL HTTP 500 on telemetry graphs. Image pinned
-  to ghcr.io/yeraze/meshmonitor:4.9.0.
+  v4.9.4: Rolls up v4.9.1–v4.9.4 on top of 4.9.0. Headlines: local-node
+  impersonation detection (flags RF packets that spoof your connected node's
+  identity instead of showing them as your own messages), cross-source Position
+  Estimation for nodes that never report GPS, drag-and-drop reordering of the
+  Sources list, and a full-height Channels tab. MeshCore gains voltage-based
+  low-battery alerts and a Notifications tab. Key fixes: MQTT broker sources
+  showing no nodes on the map, telemetry charts distorted by bad-clock nodes,
+  iOS PWA Channels layout, and a Map Analysis position-permission gate
+  (security). No manual migration needed. Image pinned to
+  ghcr.io/yeraze/meshmonitor:4.9.4.
 
 
   Highlights since v4.6.6:
+
+
+  v4.9.4 — impersonation detection + Channels/automation polish
+
+  - Local-node impersonation detection: flags packets/messages that spoof your
+    connected node's identity (arriving over RF) with a warning badge, instead
+    of rendering them as your own outgoing messages.
+
+  - Full-height Channels tab (single compact controls bar, overflow menu on
+    mobile); MeshCore Packet Monitor log export as JSONL.
+
+  - Automation: {DATE}/{TIME} tokens for Auto Announce; airtime-cutoff now lists
+    the infrastructure nodes driving the decision; system appearance theme.
+
+  - Fixes: auto-ack {LONG_NAME}/{SHORT_NAME} and {NODECOUNT}/{DIRECTCOUNT}
+    tokens resolve correctly; telemetry charts sanitized against bad-clock
+    nodes; dashboard map honors Map Pin Style. Security: Map Analysis positions
+    endpoint enforces viewOnMap / private-position permissions.
+
+
+  v4.9.3 — cross-source Position Estimation
+
+  - Position Estimation: plots best-guess locations for nodes that never report
+    GPS by pooling traceroute + NeighborInfo geometry across all sources (incl.
+    MQTT). Lives in Global Settings as one cross-source job, with a
+    Maximum-acceptable-accuracy cutoff and Show-Accuracy gating for the
+    uncertainty circles.
+
+  - Sources sidebar: Edit mode for drag-reorder handles + resizable width
+    (persisted per browser); stable per-source node count.
+
+  - Fixes: MeshCore companion GPS scale (microdegrees); container watchdog
+    health probe on multi-network deployments; MeshCore Notifications scroll.
+
+
+  v4.9.2 — reorderable Sources + MeshCore Notifications
+
+  - Drag-and-drop reordering of the Sources list on the Unified View (persisted
+    server-side, shared across viewers; migration 081).
+
+  - MeshCore sources get a dedicated Notifications tab with inactive-node and
+    new-node alerts.
+
+  - Fixes: migrate-db table ordering (SQLite to PG/MySQL); Channels layout on
+    installed iOS PWAs; channel reorder no longer bleeds channels between
+    MeshCore and Meshtastic sources.
+
+
+  v4.9.1 — MeshCore low-battery + airtime cutoff source
+
+  - MeshCore voltage-based low-battery alerts (per-user mV threshold, default
+    3300 mV).
+
+  - Airtime cutoff can measure Channel Utilization from nearby infrastructure
+    (averages the 3 strongest-RSSI 0-hop routers/repeaters) instead of the
+    local node.
+
+  - Fixes: MQTT broker source showed no nodes on dashboard/map (HTTP 500 on
+    /api/poll); Auto Traceroute match-list preview now honors its filters.
 
 
   v4.9.0 — mesh health + polite automations
