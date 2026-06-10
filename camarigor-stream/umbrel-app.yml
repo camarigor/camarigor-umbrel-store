@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.2.0"
+version: "1.3.0"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -71,6 +71,17 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.3.0: Pinned every image to an explicit, immutable version instead of
+  the floating ":latest"/":6" tags — deterministic, reproducible deploys
+  where the version listed here is exactly what runs, and updates are
+  deliberate. Pins (checked 2026-06-10): Jellyfin 10.11.11-ls36, Sonarr
+  4.0.17.2952-ls313, Radarr 6.2.1.10461-ls305, Bazarr v1.5.6-ls350,
+  Prowlarr 2.4.0.5397-ls149, qBittorrent 5.2.1_v2.0.13-ls460, cross-seed
+  6.13.7, Seerr v3.3.0 (unchanged). Byparr publishes no semver tags, so it
+  is pinned by image digest — bump the digest to update it. The notable
+  upgrades this release are Radarr and Prowlarr (both 2026-06-10 builds).
+
+
   v1.2.0: Replaced FlareSolverr with Byparr (ghcr.io/thephaseless/byparr),
   a drop-in replacement with a stronger anti-bot engine (nodriver/Camoufox)
   that solves the Cloudflare "managed challenge" loops FlareSolverr fails on
