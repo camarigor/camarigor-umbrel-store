@@ -1,0 +1,57 @@
+manifestVersion: 1
+id: camarigor-nginx-proxy-manager
+category: networking
+name: Nginx Proxy Manager (443)
+version: "2.15.1"
+tagline: Reverse proxy bound to host port 443 for portless internal HTTPS names
+icon: https://getumbrel.github.io/umbrel-apps-gallery/nginx-proxy-manager/icon.svg
+description: >-
+  Nginx Proxy Manager with the proxy bound directly to the HOST's port 443.
+
+
+  The official app remaps the proxy ports to 40080/40443 to avoid conflicts,
+  which means browser-default URLs (https://name — implicit port 443) never
+  reach it. This variant publishes 443:443, so LAN-internal DNS names pointing
+  at this device (e.g. from your router's dnsmasq) work without any port
+  suffix and with a valid TLS certificate.
+
+
+  Intended setup:
+
+  - Your router's DNS resolves internal names (app1.example.com,
+    app2.example.com, ...) to this device's LAN IP.
+
+  - A wildcard certificate (*.example.com) is issued in NPM via Let's Encrypt
+    DNS-01 challenge (e.g. a Cloudflare API token) — no inbound exposure, the
+    names never need to exist in public DNS.
+
+  - One Proxy Host entry per app forwards the name to the app's LAN port,
+    with Force SSL enabled.
+
+
+  Notes:
+
+  - Host port 80 belongs to the Umbrel dashboard and is NOT published, so
+    plain-HTTP access and HTTP-01 challenges are unavailable. Always use
+    https:// and DNS-01 challenges.
+
+  - The admin UI is served on this app's port via the Umbrel dashboard.
+
+  - Default login: admin@example.com / changeme — change it on first login.
+releaseNotes: >-
+  v2.15.1: Initial release. Same pinned image as the official app
+  (jc21/nginx-proxy-manager:2.15.1), with the proxy published on host port
+  443 (443:443) instead of 40443, and without the docker-host helper
+  container (forward to LAN IPs directly). Port 80 is not published — the
+  Umbrel dashboard owns it; use DNS-01 challenges and https:// URLs.
+developer: jc21
+website: https://nginxproxymanager.com
+support: https://github.com/NginxProxyManager/nginx-proxy-manager/issues
+dependencies: []
+port: 9005
+gallery: []
+path: ""
+defaultUsername: "admin@example.com"
+defaultPassword: "changeme"
+submitter: camarigor
+submission: ""

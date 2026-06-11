@@ -1,0 +1,28 @@
+version: "3.7"
+
+# Variant of the official Nginx Proxy Manager app with ONE deliberate change:
+# the proxy binds the HOST's port 443 directly (the official app remaps it to
+# 40443, which breaks portless https://name URLs for LAN-internal DNS names).
+# Host port 80 belongs to the Umbrel dashboard, so it is NOT published here —
+# use DNS-01 challenges for certificates and access services via https://.
+#
+# NOTE: read_only:true / no-new-privileges are intentionally NOT set, matching
+# the official upstream app config. NPM's s6-overlay init and nginx write
+# config/certificates at runtime, which is incompatible with a read-only root
+# fs; data is isolated in the app-data volumes below.
+services:
+  app_proxy:
+    environment:
+      APP_HOST: camarigor-nginx-proxy-manager_web_1
+      APP_PORT: 81
+
+  web:
+    image: jc21/nginx-proxy-manager:2.15.1@sha256:52b2c59994f3d36acfcf70a1626f29734df0ed8c71bacc0269f78b6f939858bb
+    hostname: camarigor-nginx-proxy-manager_web_1
+    restart: on-failure
+    stop_grace_period: 30s
+    ports:
+      - "443:443"
+    volumes:
+      - ${APP_DATA_DIR}/data/npm-data:/data
+      - ${APP_DATA_DIR}/data/letsencrypt:/etc/letsencrypt
