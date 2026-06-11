@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-meshmonitor
 category: networking
 name: MeshMonitor
-version: "4.9.4"
+version: "4.9.5"
 tagline: Self-hosted Meshtastic monitoring with real-time maps, messages, and alerts
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-meshmonitor/icon.png
 description: >-
@@ -52,6 +52,15 @@ path: ""
 defaultUsername: "admin"
 defaultPassword: "changeme"
 releaseNotes: >-
+  v4.9.5: Packaging-only change — image unchanged (still
+  ghcr.io/yeraze/meshmonitor:4.9.4). Adapts MeshMonitor for access through an
+  internal reverse proxy over HTTPS: ALLOWED_ORIGINS is set to the proxy
+  hostname and COOKIE_SECURE is enabled, so cookie-based login works behind the
+  proxy. The app is reached via its HTTPS name only; the plain-HTTP Umbrel
+  dashboard "Open" button is no longer a supported login path. No upstream code
+  change and no data migration.
+
+
   v4.9.4: Rolls up v4.9.1–v4.9.4 on top of 4.9.0. Headlines: local-node
   impersonation detection (flags RF packets that spoof your connected node's
   identity instead of showing them as your own messages), cross-source Position

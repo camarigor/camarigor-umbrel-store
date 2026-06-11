@@ -14,8 +14,11 @@ services:
       - "9003:3001"
     environment:
       TZ: America/Sao_Paulo
-      ALLOWED_ORIGINS: "http://umbrel.local:9003,http://${DEVICE_HOSTNAME:-umbrel}.local:9003,http://${DEVICE_DOMAIN_NAME:-umbrel.local}:9003"
-      COOKIE_SECURE: "false"
+      # Accessed only through the internal reverse proxy (NPM) at this HTTPS
+      # name. COOKIE_SECURE requires HTTPS, so the plain-HTTP Umbrel dashboard
+      # "Open" button is intentionally not a supported login path here.
+      ALLOWED_ORIGINS: "https://meshmonitor.tinfoilhat.work"
+      COOKIE_SECURE: "true"
     security_opt:
       - no-new-privileges:true
     cap_drop:
