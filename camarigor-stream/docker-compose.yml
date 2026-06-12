@@ -47,10 +47,13 @@ services:
       - ${APP_DATA_DIR}:/app-data
 
   jellyfin:
-    # linuxserver has no reliable semver-ls tag via the registry API for
-    # jellyfin (10.11.11-ls36 exists on Docker Hub but 404s on lscr.io/GHCR,
-    # where this pulls from) — pinned by the lscr.io :latest digest (= 10.11.11).
-    image: lscr.io/linuxserver/jellyfin@sha256:c123ef2f82195e377d8ca3df275f13f9dfa5c6e61b195958662b42b5e54362ab
+    # Official Jellyfin image (migrated from linuxserver.io 2026-06-11): it ships
+    # the Intel OpenCL runtime (intel-opencl-icd), which the LSIO image lacks —
+    # required for HDR->SDR tone mapping (tonemap_opencl), which fails on LSIO with
+    # "FFmpeg exited with code 237 / Failed to get number of OpenCL platforms".
+    # Same version (10.11.11) as the prior LSIO digest: pure vendor swap, no DB
+    # schema migration.
+    image: jellyfin/jellyfin:10.11.11
     restart: on-failure
     stop_grace_period: 30s
     depends_on:
@@ -58,13 +61,21 @@ services:
         condition: service_completed_successfully
     security_opt:
       - no-new-privileges:true
+    # Official image runs the server directly as this user (no PUID/PGID/s6 layer).
+    user: "1000:1000"
     environment:
-      PUID: "1000"
-      PGID: "1000"
       TZ: America/Sao_Paulo
-      UMASK: "002"
-    # Intel N150 iGPU: Quick Sync via VAAPI/QSV. GID 991 = host `render`
-    # group (verified on the target host, 2026-06-05).
+      # Point the official image at the EXISTING LSIO on-disk layout so users,
+      # libraries, watch history and config are read in place — no file moves.
+      # LSIO kept config XMLs at /config (root) and data under /config/data;
+      # the official image defaults differ (data at /config, config at
+      # /config/config), so these overrides preserve the existing structure.
+      JELLYFIN_CONFIG_DIR: /config
+      JELLYFIN_DATA_DIR: /config/data
+      JELLYFIN_CACHE_DIR: /config/cache
+      JELLYFIN_LOG_DIR: /config/log
+    # Intel N150 iGPU: Quick Sync via VAAPI/QSV + OpenCL tone mapping. GID 991 =
+    # host `render` group (verified on the target host, 2026-06-05).
     group_add:
       - "991"
     devices:

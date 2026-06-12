@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.3.1"
+version: "1.4.0"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -71,6 +71,19 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.4.0: Jellyfin migrated from the linuxserver.io image to the official
+  jellyfin/jellyfin:10.11.11 (same version — pure vendor swap, no DB schema
+  migration). The official image ships the Intel OpenCL runtime
+  (intel-opencl-icd) that the LSIO image lacks, required for HDR->SDR tone
+  mapping (tonemap_opencl). Symptom on LSIO: 4K HDR titles failed to play on any
+  client that needs transcoding (SDR browsers, phones) with "FFmpeg exited with
+  code 237 / Failed to get number of OpenCL platforms"; DirectPlay-capable
+  clients were unaffected. The image now runs as user 1000:1000 (no PUID/PGID),
+  and JELLYFIN_CONFIG_DIR/DATA_DIR/CACHE_DIR/LOG_DIR point it at the existing
+  on-disk layout, so all users, libraries, watch history and settings are
+  preserved in place (no data move).
+
+
   v1.3.1: Hotfix — the v1.3.0 Jellyfin pin (10.11.11-ls36) existed only on
   Docker Hub, not on lscr.io/GHCR where this app actually pulls from, so the
   image pull failed and the Umbrel update stalled with all services down.
