@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-meshmonitor
 category: networking
 name: MeshMonitor
-version: "4.9.5"
+version: "4.10.1"
 tagline: Self-hosted Meshtastic monitoring with real-time maps, messages, and alerts
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-meshmonitor/icon.png
 description: >-
@@ -52,6 +52,25 @@ path: ""
 defaultUsername: "admin"
 defaultPassword: "changeme"
 releaseNotes: >-
+  v4.10.1: Image updated 4.9.4 → 4.10.1 (rolls in the upstream 4.10.0 + 4.10.1
+  releases). The HTTPS reverse-proxy packaging from v4.9.5 (ALLOWED_ORIGINS +
+  COOKIE_SECURE) is retained. Headlines: Automated Remote Favorites management
+  for infrastructure nodes (via NeighborInfo discovery + traceroutes), a global
+  toggle to disable link previews across all message surfaces, guided firmware
+  half-flash recovery with online checks, and per-channel notification sounds.
+  Fixes: MeshCore decodes packed out_path_len for correct hop counts, batteryMv
+  persists after telemetry polls, and auto-favorite checkbox alignment.
+
+
+  v4.10.0: Auto Remote LocalStats automation (polls remote nodes for noise floor
+  and channel utilization), Map Analysis upgrades (node search, marker
+  clustering/spiderfy, directional traceroute arrows, weak-link filtering),
+  GeoJSON overlays rendering on anonymous and dashboard maps, and desktop builds
+  bundling Apprise as a frozen sidecar. Fixes: cross-source Security-tab data
+  leak, Radio Statistics legend clipping, and custom analytics CSP domains
+  reaching HTTP headers.
+
+
   v4.9.5: Packaging-only change — image unchanged (still
   ghcr.io/yeraze/meshmonitor:4.9.4). Adapts MeshMonitor for access through an
   internal reverse proxy over HTTPS: ALLOWED_ORIGINS is set to the proxy
