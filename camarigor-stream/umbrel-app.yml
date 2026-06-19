@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.5.0"
+version: "1.5.1"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -74,6 +74,14 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.5.1: Run Unpackerr as user 1000:1000 at the Docker level instead of via
+  PUID/PGID. The golift image is a plain Go binary (not an LSIO image) and
+  ignores PUID/PGID, so it ran as root and wrote root-owned extracted files
+  that Sonarr/Radarr (uid 1000) could not hardlink (fs.protected_hardlinks=1),
+  which would break the import. Pinning the runtime user fixes file ownership
+  so extracted releases hardlink into the library correctly.
+
+
   v1.5.0: Added Unpackerr (golift/unpackerr) to auto-extract RAR/scene
   releases. Sonarr/Radarr sometimes grab scene BluRay packs (e.g.
   iNVANDRAREN) that arrive as multi-part .rNN archives; without an extractor

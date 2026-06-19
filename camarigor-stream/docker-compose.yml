@@ -271,11 +271,14 @@ services:
         condition: service_completed_successfully
     security_opt:
       - no-new-privileges:true
+    # golift/unpackerr is a plain Go binary (not an LSIO image) and ignores
+    # PUID/PGID — it would run as root and create root-owned extracted files
+    # that Sonarr/Radarr (uid 1000) cannot hardlink (fs.protected_hardlinks=1
+    # on the host), breaking the import. Pin the runtime user at the Docker
+    # level so extracted files are owned by 1000 and hardlink cleanly.
+    user: "1000:1000"
     environment:
-      PUID: "1000"
-      PGID: "1000"
       TZ: America/Sao_Paulo
-      UMASK: "002"
     volumes:
       - ${APP_DATA_DIR}/config/unpackerr:/config
       - ${APP_DATA_DIR}/data:/data
