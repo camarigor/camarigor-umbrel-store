@@ -20,6 +20,7 @@ services:
           /app-data/config/prowlarr \
           /app-data/config/qbittorrent \
           /app-data/config/cross-seed \
+          /app-data/config/unpackerr \
           /app-data/data/torrents/movies \
           /app-data/data/torrents/tv \
           /app-data/data/torrents/cross-seed \
@@ -35,6 +36,7 @@ services:
           /app-data/config/prowlarr \
           /app-data/config/qbittorrent \
           /app-data/config/cross-seed \
+          /app-data/config/unpackerr \
           /app-data/data \
           /app-data/data/torrents \
           /app-data/data/torrents/movies \
@@ -253,3 +255,30 @@ services:
       - ${APP_DATA_DIR}/config/cross-seed:/config
       - ${APP_DATA_DIR}/data:/data
     # No ports: internal webhook only (qbittorrent -> http://cross-seed:2468).
+
+  unpackerr:
+    # Auto-extracts RAR/scene releases that Sonarr/Radarr grab. Scene BluRay
+    # packs (e.g. iNVANDRAREN) arrive as multi-part .r00-.rNN archives; without
+    # an extractor the download finishes 100% but the *arr apps cannot import
+    # it (they log "Found archive file" and stall). Unpackerr polls the
+    # Sonarr/Radarr queues, extracts archives in place, and the *arr then
+    # imports the .mkv via hardlink while the original archive keeps seeding.
+    # Official golift image; pinned — bump deliberately via store updates.
+    image: golift/unpackerr:0.15.2
+    restart: on-failure
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: America/Sao_Paulo
+      UMASK: "002"
+    volumes:
+      - ${APP_DATA_DIR}/config/unpackerr:/config
+      - ${APP_DATA_DIR}/data:/data
+    # No ports: internal only. First start writes a template
+    # /config/unpackerr.conf which the user fills with the Sonarr/Radarr URLs
+    # and API keys post-install (see README), then restarts the app.

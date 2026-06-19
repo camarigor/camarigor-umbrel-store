@@ -1,7 +1,7 @@
 # Stream — Umbrel media stack
 
 Single app: Jellyfin + Jellyseerr + Sonarr + Radarr + Bazarr + Prowlarr +
-qBittorrent + Byparr + cross-seed.
+qBittorrent + Byparr + cross-seed + Unpackerr.
 
 ## UIs (host `umbrel`)
 
@@ -113,6 +113,33 @@ Byparr and cross-seed have no exposed UI (internal only).
    `curl -s -XPOST http://cross-seed:2468/api/webhook --data-urlencode "infoHash=%I"`
 3. Restart the app from the Umbrel UI.
 4. Logs: `sudo docker logs -f $(sudo docker ps --format '{{.Names}}' | grep cross-seed)`.
+
+### 8. Unpackerr (no UI)
+
+Auto-extracts RAR/scene releases (e.g. iNVANDRAREN BluRay packs that arrive
+as `.r00`-`.rNN`) so Sonarr/Radarr can import them instead of stalling on
+"Found archive file".
+
+1. The first start writes
+   `~/umbrel/app-data/camarigor-stream/config/unpackerr/unpackerr.conf`.
+   Edit it and, under the `[[sonarr]]` and `[[radarr]]` blocks, uncomment and
+   set `url`, `api_key` and `paths`:
+
+   ```toml
+   [[sonarr]]
+     url = "http://sonarr:8989"
+     api_key = "YOUR_SONARR_API_KEY"
+     paths = ['/data/torrents']
+
+   [[radarr]]
+     url = "http://radarr:7878"
+     api_key = "YOUR_RADARR_API_KEY"
+     paths = ['/data/torrents']
+   ```
+
+   API keys: Sonarr/Radarr → Settings → General → API Key.
+2. Restart the app from the Umbrel UI.
+3. Logs: `sudo docker logs -f $(sudo docker ps --format '{{.Names}}' | grep unpackerr)`.
 
 ## Remote access
 

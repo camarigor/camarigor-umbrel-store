@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.4.0"
+version: "1.5.0"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -34,6 +34,9 @@ description: >-
   - cross-seed (internal): re-seeds the same files on other trackers
     (ratio building on private trackers) without re-downloading, via
     hardlinks.
+
+  - Unpackerr (internal): auto-extracts RAR/scene releases (multi-part
+    .rNN archives) so Sonarr and Radarr can import them.
 
 
   Data layout (single volume — hardlinks between downloads and library,
@@ -71,6 +74,17 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.5.0: Added Unpackerr (golift/unpackerr) to auto-extract RAR/scene
+  releases. Sonarr/Radarr sometimes grab scene BluRay packs (e.g.
+  iNVANDRAREN) that arrive as multi-part .rNN archives; without an extractor
+  they finish downloading 100% but fail to import ("Found archive file").
+  Unpackerr watches the Sonarr/Radarr queues, extracts archives in place and
+  lets the *arr import via hardlink while the original archive keeps seeding.
+  It runs internally (no UI/port). Post-install: fill
+  config/unpackerr/unpackerr.conf with the Sonarr/Radarr URLs and API keys
+  (see README), then restart the app.
+
+
   v1.4.0: Jellyfin migrated from the linuxserver.io image to the official
   jellyfin/jellyfin:10.11.11 (same version — pure vendor swap, no DB schema
   migration). The official image ships the Intel OpenCL runtime
