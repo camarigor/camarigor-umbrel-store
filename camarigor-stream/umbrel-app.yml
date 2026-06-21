@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.6.6"
+version: "1.6.7"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -85,6 +85,18 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.6.7: Revert v1.6.6 — put gluetun's ongoing healthcheck back THROUGH the
+  tunnel (HEALTH_ICMP_TARGET_IPS=1.1.1.1,8.8.8.8). v1.6.6 pinged the LAN, which
+  always answers, so when a ProtonVPN server had a silent WireGuard failure
+  gluetun reported "healthy" while the tunnel was actually dead — qBittorrent got
+  zero traffic and never auto-recovered (happened 2026-06-21). Pinging through the
+  tunnel is what detects a dead tunnel and makes gluetun reconnect to a working
+  server; the rare transient restart is the price of that auto-recovery (the
+  port-sync sidecar reannounces on reconnect, so it self-heals). The startup check
+  stays on the internal valid-cert host (bad-gateway) only to avoid the
+  startup-window flap. No image changes.
+
+
   v1.6.6: Also point gluetun's ONGOING small-check at the LAN
   (HEALTH_ICMP_TARGET_IPS=10.7.7.1) instead of pinging 1.1.1.1/8.8.8.8 through the
   tunnel. After v1.6.5 fixed the startup check, a single transient tunnel ICMP
