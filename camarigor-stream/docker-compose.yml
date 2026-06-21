@@ -21,6 +21,7 @@ services:
           /app-data/config/qbittorrent \
           /app-data/config/cross-seed \
           /app-data/config/unpackerr \
+          /app-data/config/gluetun \
           /app-data/data/torrents/movies \
           /app-data/data/torrents/tv \
           /app-data/data/torrents/cross-seed \
@@ -37,6 +38,7 @@ services:
           /app-data/config/qbittorrent \
           /app-data/config/cross-seed \
           /app-data/config/unpackerr \
+          /app-data/config/gluetun \
           /app-data/data \
           /app-data/data/torrents \
           /app-data/data/torrents/movies \
@@ -184,13 +186,67 @@ services:
     volumes:
       - ${APP_DATA_DIR}/config/prowlarr:/config
 
-  qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent:5.2.1_v2.0.13-ls460
+  gluetun:
+    # ProtonVPN gateway for qBittorrent (24/7). ALL qBittorrent traffic egresses
+    # through this WireGuard tunnel; gluetun's built-in kill-switch blocks every
+    # non-VPN packet, so if the tunnel drops qBit loses internet instead of
+    # leaking the real IP. PORT_FORWARD_ONLY=on connects ONLY to P2P/
+    # port-forwarding servers; VPN_PORT_FORWARDING=on requests a forwarded port
+    # (NAT-PMP) so qBittorrent stays connectable (seeding/ratio/H&R). The dynamic
+    # forwarded port is written to /gluetun/forwarded_port and pushed into
+    # qBittorrent by the qbit-port-sync sidecar.
+    image: qmcgaw/gluetun:v3.41.1
     restart: on-failure
-    stop_grace_period: 30s
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
     depends_on:
       init:
         condition: service_completed_successfully
+    environment:
+      TZ: America/Sao_Paulo
+      VPN_SERVICE_PROVIDER: protonvpn
+      VPN_TYPE: wireguard
+      # Secrets live in app-data (config/gluetun/), NEVER in this public repo.
+      # Generate a ProtonVPN WireGuard config with NAT-PMP enabled, then write its
+      # PrivateKey to config/gluetun/wireguard_private_key and its Address (e.g.
+      # 10.2.0.2/32) to config/gluetun/wireguard_addresses (see README).
+      WIREGUARD_PRIVATE_KEY_SECRETFILE: /gluetun/wireguard_private_key
+      WIREGUARD_ADDRESSES_SECRETFILE: /gluetun/wireguard_addresses
+      VPN_PORT_FORWARDING: "on"
+      VPN_PORT_FORWARDING_STATUS_FILE: /gluetun/forwarded_port
+      PORT_FORWARD_ONLY: "on"
+      # ProtonVPN P2P + port-forwarding servers in Brazil. If Brazil has no
+      # port-forwarding server, gluetun fails fast in its logs — change this to
+      # another country (e.g. Netherlands) or remove it to auto-pick any PF server.
+      SERVER_COUNTRIES: Brazil
+      # Expose qBittorrent's WebUI (8082) through gluetun to the LAN.
+      FIREWALL_INPUT_PORTS: "8082"
+      # Let qBit (in this netns) reach the other stack containers (cross-seed
+      # webhook) and let Sonarr/Radarr reach qBit, over the Docker/LAN subnets.
+      FIREWALL_OUTBOUND_SUBNETS: 172.16.0.0/12,192.168.0.0/16,10.0.0.0/8
+    ports:
+      # qBittorrent WebUI (qBit runs in this network namespace). The BitTorrent
+      # port is NOT published — incoming peers arrive via ProtonVPN's forwarded
+      # port through the tunnel.
+      - "8082:8082"
+    volumes:
+      - ${APP_DATA_DIR}/config/gluetun:/gluetun
+    # No no-new-privileges here: gluetun configures tun routing/iptables and
+    # needs the NET_ADMIN capability to apply them.
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:5.2.2_v2.0.13-ls462
+    restart: on-failure
+    stop_grace_period: 30s
+    # Routed through ProtonVPN: shares gluetun's network namespace, so it has NO
+    # own ports/hostname. WebUI 8082 is published by gluetun (above); reach it at
+    # gluetun:8082 from Sonarr/Radarr/cross-seed, and at <host>:8082 from the LAN.
+    network_mode: "service:gluetun"
+    depends_on:
+      gluetun:
+        condition: service_healthy
     security_opt:
       - no-new-privileges:true
     environment:
@@ -198,16 +254,12 @@ services:
       PGID: "1000"
       TZ: America/Sao_Paulo
       UMASK: "002"
-      # 8082 inside AND outside: host port 8080 is taken on the target
-      # host, and qBittorrent's Host-header validation rejects requests
-      # whose Host port differs from the WebUI port (verified empirically
-      # 2026-06-05) — remapping 8082->8080 returns a bare 401.
+      # qBittorrent's Host-header validation rejects requests whose Host port
+      # differs from the WebUI port, so keep 8082 (host port 8080 is taken on the
+      # target host) — verified 2026-06-05.
       WEBUI_PORT: "8082"
-      TORRENTING_PORT: "6881"
-    ports:
-      - "8082:8082"
-      - "6881:6881"
-      - "6881:6881/udp"
+      # No fixed TORRENTING_PORT — the listen port is set dynamically to
+      # ProtonVPN's forwarded port by the qbit-port-sync sidecar.
     volumes:
       - ${APP_DATA_DIR}/config/qbittorrent:/config
       - ${APP_DATA_DIR}/data:/data
@@ -285,3 +337,38 @@ services:
     # No ports: internal only. First start writes a template
     # /config/unpackerr.conf which the user fills with the Sonarr/Radarr URLs
     # and API keys post-install (see README), then restarts the app.
+
+  qbit-port-sync:
+    # Keeps qBittorrent's listen port equal to ProtonVPN's dynamic forwarded port
+    # (so qBit stays connectable -> seeding/ratio/H&R). Shares gluetun's netns,
+    # reads the port gluetun writes to /gluetun/forwarded_port, and pushes it to
+    # qBit at 127.0.0.1:8082. REQUIRES qBittorrent -> Options -> WebUI -> "Bypass
+    # authentication for clients on localhost" = ON (set post-install; see README).
+    image: curlimages/curl:8.11.1
+    restart: on-failure
+    network_mode: "service:gluetun"
+    depends_on:
+      gluetun:
+        condition: service_healthy
+      qbittorrent:
+        condition: service_started
+    # root so it can read gluetun's port file regardless of ownership.
+    user: "0:0"
+    volumes:
+      - ${APP_DATA_DIR}/config/gluetun:/gluetun:ro
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        LAST=""
+        while true; do
+          P=$$(cat /gluetun/forwarded_port 2>/dev/null)
+          if [ -n "$$P" ] && [ "$$P" != "$$LAST" ]; then
+            if curl -fsS -H "Referer: http://127.0.0.1:8082" \
+              --data-urlencode "json={\"listen_port\":$$P,\"random_port\":false,\"upnp\":false}" \
+              http://127.0.0.1:8082/api/v2/app/setPreferences >/dev/null 2>&1; then
+              LAST="$$P"; echo "[qbit-port-sync] listen_port=$$P"
+            fi
+          fi
+          sleep 60
+        done

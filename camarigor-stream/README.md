@@ -1,7 +1,11 @@
 # Stream — Umbrel media stack
 
 Single app: Jellyfin + Jellyseerr + Sonarr + Radarr + Bazarr + Prowlarr +
-qBittorrent + Byparr + cross-seed + Unpackerr.
+qBittorrent + Byparr + cross-seed + Unpackerr + gluetun (ProtonVPN).
+
+> qBittorrent runs behind ProtonVPN (gluetun). Its WebUI is still on host
+> port `8082` (published by gluetun); inside the stack reach it at
+> `gluetun:8082`, not `qbittorrent:8082`.
 
 ## UIs (host `umbrel`)
 
@@ -51,8 +55,8 @@ Byparr and cross-seed have no exposed UI (internal only).
    - Sonarr: `/data/media/tv`
    - Radarr: `/data/media/movies`
 3. Settings → Download Clients → Add → qBittorrent:
-   - Host `qbittorrent`, Port `8082`, username/password from step 1,
-     Category `tv` (Sonarr) / `movies` (Radarr).
+   - Host `gluetun` (qBit shares gluetun's network), Port `8082`,
+     username/password from step 1, Category `tv` (Sonarr) / `movies` (Radarr).
 4. Confirm in Settings → Media Management → Importing: **Use Hardlinks
    instead of Copy** = ON (default).
 
@@ -98,7 +102,7 @@ Byparr and cross-seed have no exposed UI (internal only).
    correct:
 
    ```js
-   torrentClients: ["qbittorrent:http://USER:PASSWORD@qbittorrent:8082"],
+   torrentClients: ["qbittorrent:http://USER:PASSWORD@gluetun:8082"],
 
    torznab: [
      // Prowlarr → Indexers → copy the Torznab feed URL of each indexer
@@ -140,6 +144,46 @@ as `.r00`-`.rNN`) so Sonarr/Radarr can import them instead of stalling on
    API keys: Sonarr/Radarr → Settings → General → API Key.
 2. Restart the app from the Umbrel UI.
 3. Logs: `sudo docker logs -f $(sudo docker ps --format '{{.Names}}' | grep unpackerr)`.
+
+### 9. VPN — gluetun + ProtonVPN (no UI)
+
+All qBittorrent traffic goes through ProtonVPN (WireGuard) with a kill-switch
+and port forwarding, so torrents stay connectable without leaking your IP.
+**Requires a ProtonVPN paid plan** (Plus/Unlimited — they include P2P + port
+forwarding). gluetun restart-loops until the key files below exist (expected).
+
+1. ProtonVPN dashboard → **WireGuard configuration**:
+   - Platform: **GNU/Linux**; turn ON **NAT-PMP (Port Forwarding)**; leave
+     Moderate NAT off; VPN Accelerator on.
+   - From the generated config note the `PrivateKey` and the `Address`
+     (e.g. `10.2.0.2/32`).
+2. Drop the secrets into `~/umbrel/app-data/camarigor-stream/config/gluetun/`
+   (these stay out of the store repo):
+
+   ```sh
+   printf '%s' 'YOUR_WIREGUARD_PRIVATE_KEY' > config/gluetun/wireguard_private_key
+   printf '%s' '10.2.0.2/32'                > config/gluetun/wireguard_addresses
+   ```
+
+3. qBittorrent → Options → WebUI → enable **"Bypass authentication for
+   clients on localhost"** (lets the qbit-port-sync sidecar set the forwarded
+   port without credentials).
+4. Restart the app from the Umbrel UI.
+5. Verify:
+   - `sudo docker logs -f $(sudo docker ps --format '{{.Names}}' | grep gluetun)`
+     should show it connected to a Brazil server and a line like
+     `port forwarding: opened port XXXXX`. If it reports no matching server,
+     change `SERVER_COUNTRIES` in the compose (e.g. to `Netherlands`) or remove
+     it to auto-pick any port-forwarding server.
+   - Confirm the egress IP is ProtonVPN's:
+     `sudo docker exec $(sudo docker ps --format '{{.Names}}' | grep gluetun) wget -qO- https://ipinfo.io/ip`
+   - `qbit-port-sync` logs should show `listen_port=XXXXX` matching the
+     forwarded port; qBittorrent → Options → Connection port should equal it.
+
+> Notes: the BitTorrent port is NOT published on the host — incoming peers
+> arrive through the VPN's forwarded port. If you ever stop using the VPN,
+> revert qBittorrent to its own `network_mode`/ports and point Sonarr/Radarr/
+> cross-seed back to `qbittorrent:8082`.
 
 ## Remote access
 

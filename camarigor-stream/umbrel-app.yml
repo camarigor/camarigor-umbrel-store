@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.5.1"
+version: "1.6.0"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -38,6 +38,11 @@ description: >-
   - Unpackerr (internal): auto-extracts RAR/scene releases (multi-part
     .rNN archives) so Sonarr and Radarr can import them.
 
+  - gluetun (internal): ProtonVPN gateway. qBittorrent routes ALL its
+    traffic through this WireGuard tunnel with a kill-switch and
+    ProtonVPN port forwarding (P2P servers), so torrents stay connectable
+    without leaking the real IP. Requires a ProtonVPN paid plan.
+
 
   Data layout (single volume — hardlinks between downloads and library,
   no duplicated disk space):
@@ -56,7 +61,7 @@ description: >-
      Host http://byparr:8191) and connect Sonarr/Radarr.
 
   3. Sonarr/Radarr: root folders /data/media/{tv,movies} + download
-     client qbittorrent:8080.
+     client host gluetun, port 8082 (qBittorrent runs behind the VPN).
 
   4. Bazarr: Portuguese (Brazil) language profile + providers.
 
@@ -64,8 +69,14 @@ description: >-
 
   6. Jellyseerr: connect to Jellyfin + Radarr/Sonarr.
 
-  7. cross-seed: edit config/cross-seed/config.js (qBittorrent + Prowlarr
-     Torznab) and restart the app.
+  7. cross-seed: edit config/cross-seed/config.js (point qBittorrent to
+     gluetun:8082 + Prowlarr Torznab) and restart the app.
+
+  8. VPN (gluetun): generate a ProtonVPN WireGuard config with NAT-PMP
+     enabled, write its PrivateKey to config/gluetun/wireguard_private_key
+     and its Address to config/gluetun/wireguard_addresses, enable
+     qBittorrent "Bypass authentication for clients on localhost", then
+     restart the app (see README).
 developer: camarigor
 website: https://github.com/camarigor/camarigor-umbrel-store
 support: https://github.com/camarigor/camarigor-umbrel-store/issues
@@ -74,6 +85,19 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.6.0: qBittorrent now routes ALL traffic through ProtonVPN via a new
+  internal gluetun gateway (24/7, WireGuard) with a kill-switch — if the tunnel
+  drops, qBit loses internet instead of leaking the real IP. Uses ProtonVPN port
+  forwarding on P2P servers (PORT_FORWARD_ONLY) so torrents stay connectable;
+  the dynamic forwarded port is auto-synced into qBittorrent by a small
+  qbit-port-sync sidecar. qBittorrent's WebUI is still on host port 8082 (now
+  published by gluetun); Sonarr/Radarr/cross-seed reach it at gluetun:8082.
+  Requires a ProtonVPN PAID plan: post-install, drop your WireGuard PrivateKey
+  and Address into config/gluetun/ (kept out of this repo) and enable
+  qBittorrent "Bypass authentication for clients on localhost" (see README).
+  Also bumps qBittorrent to 5.2.2 (libtorrent v2.0.13).
+
+
   v1.5.1: Run Unpackerr as user 1000:1000 at the Docker level instead of via
   PUID/PGID. The golift image is a plain Go binary (not an LSIO image) and
   ignores PUID/PGID, so it ran as root and wrote root-owned extracted files
