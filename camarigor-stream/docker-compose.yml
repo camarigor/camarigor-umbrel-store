@@ -209,12 +209,13 @@ services:
       - NET_ADMIN
     devices:
       - /dev/net/tun:/dev/net/tun
-    # Seed this netns's resolv.conf with the LAN DNS (OpenWRT/AdGuard) so gluetun
-    # records it as the private resolver at container start. gluetun's built-in DNS
-    # then forwards to it explicitly via DNS_UPSTREAM_* below. qBit and the sidecar
-    # share this netns, so they resolve via 10.7.7.1 too. Change to your LAN resolver.
+    # Seed this netns's resolv.conf with your DNS resolver so gluetun records it as
+    # the private resolver at container start; its built-in DNS then forwards to it
+    # explicitly via DNS_UPSTREAM_* below. qBit and the sidecar share this netns, so
+    # they resolve via it too. Set LAN_DNS in exports.sh (see README); defaults to
+    # 1.1.1.1 (Cloudflare) when unset.
     dns:
-      - 10.7.7.1
+      - "${LAN_DNS:-1.1.1.1}"
     depends_on:
       init:
         condition: service_completed_successfully
@@ -235,37 +236,32 @@ services:
       # port-forwarding server, gluetun fails fast in its logs — change this to
       # another country (e.g. Netherlands) or remove it to auto-pick any PF server.
       SERVER_COUNTRIES: Brazil
-      # DNS: gluetun's built-in resolver forwards EVERY query to the LAN DNS
-      # (10.7.7.1) over plaintext UDP. This is the supported replacement for the
-      # now-obsolete DNS_KEEP_NAMESERVER and the proper fix for issue #3231 — older
-      # builds ignored a custom plaintext upstream and forced Cloudflare, which
-      # CANNOT resolve the internal-only healthcheck host below, so gluetun looped
-      # on "lookup bad-gateway.tinfoilhat.work ... no such host" and never went
-      # healthy (qBit/sidecar then stuck in Created → app stuck "updating"). The
-      # query to 10.7.7.1 exits via the LAN (in FIREWALL_OUTBOUND_SUBNETS); torrent
-      # traffic still tunnels. qBit + sidecar share this netns -> same DNS.
+      # DNS: gluetun's built-in resolver forwards EVERY query to your resolver
+      # (LAN_DNS) over plaintext UDP — the supported way to use a custom resolver on
+      # this build (replaces the obsolete DNS_KEEP_NAMESERVER; the proper fix for
+      # gluetun#3231, where older builds ignored a custom plaintext upstream and
+      # forced Cloudflare). The query exits via the LAN (the resolver's subnet must
+      # be in FIREWALL_OUTBOUND_SUBNETS); torrent traffic still tunnels. qBit +
+      # sidecar share this netns -> same DNS. Set LAN_DNS in exports.sh; defaults to
+      # 1.1.1.1 when unset.
       DNS_UPSTREAM_RESOLVER_TYPE: plain
-      DNS_UPSTREAM_PLAIN_ADDRESSES: 10.7.7.1:53
+      DNS_UPSTREAM_PLAIN_ADDRESSES: "${LAN_DNS:-1.1.1.1}:53"
       # gluetun's built-in resolver has DNS-rebinding protection that REFUSES any
-      # answer pointing to a PRIVATE IP. The healthcheck host below is split-horizon
-      # and resolves (via 10.7.7.1) to a LAN IP, so without this exemption gluetun
-      # returns REFUSED for it and loops on the startup check forever (proven from
-      # inside gluetun's netns 2026-06-21: 10.7.7.1 resolves it fine, but the
-      # built-in resolver REFUSED it while public names resolved). Exempt it so the
-      # private-IP answer is allowed. List your own internal healthcheck host here.
-      DNS_REBINDING_PROTECTION_EXEMPT_HOSTNAMES: bad-gateway.tinfoilhat.work
-      # STARTUP healthcheck target = an INTERNAL-only host with a VALID cert.
-      # gluetun's DEFAULT check (TLS to cloudflare.com:443/github.com:443 THROUGH
-      # the tunnel) flapped (TLS handshake EOF, 2026-06-21); a raw IP (10.7.7.1:443)
-      # flapped too because gluetun VERIFIES the cert and the router's self-signed
-      # cert has no IP SAN. bad-gateway.tinfoilhat.work resolves via the LAN DNS
-      # (10.7.7.1, split-horizon → internal only) to local infra with a VALID
-      # (Let's Encrypt) cert on :443, reached over the LAN (in
-      # FIREWALL_OUTBOUND_SUBNETS) — so the TLS handshake completes AND the cert
-      # verifies, with no dependency on the tunnel → no flapping. The ongoing ICMP
-      # small-check (1.1.1.1/8.8.8.8) still pings THROUGH the tunnel. Replace this
-      # with any internal-only host that presents a publicly-valid cert.
-      HEALTH_TARGET_ADDRESSES: bad-gateway.tinfoilhat.work:443
+      # answer pointing to a PRIVATE IP. If your healthcheck host (below) is split-
+      # horizon and resolves to a LAN IP, gluetun REFUSES it and loops on the startup
+      # check forever — so exempt it here to allow the private-IP answer. Set
+      # VPN_HEALTHCHECK_HOST in exports.sh; empty by default (no exemption needed
+      # with the default public healthcheck target).
+      DNS_REBINDING_PROTECTION_EXEMPT_HOSTNAMES: "${VPN_HEALTHCHECK_HOST:-}"
+      # STARTUP healthcheck = a TLS handshake (WITH cert verification) to this
+      # target. The default (cloudflare.com:443, through the tunnel) works for most
+      # setups. If you route DNS to a LAN resolver, the through-tunnel default can
+      # flap in the startup window — point it instead at an INTERNAL-only host that
+      # presents a publicly-valid cert and is reached over the LAN (no tunnel
+      # dependency), via VPN_HEALTHCHECK_HOST in exports.sh (also add that host to
+      # the rebinding exemption above). NOT a raw IP (cert verification needs a SAN
+      # match). The ongoing ICMP small-check still runs THROUGH the tunnel.
+      HEALTH_TARGET_ADDRESSES: "${VPN_HEALTHCHECK_HOST:-cloudflare.com}:443"
       # Ongoing small-check pings 1.1.1.1/8.8.8.8 THROUGH the tunnel — this is what
       # DETECTS a dead tunnel (silent WireGuard failure) so gluetun reconnects to a
       # working server. ⚠️ Do NOT point this at the LAN (tried in v1.6.6,
@@ -279,12 +275,13 @@ services:
       # Expose qBittorrent's WebUI (8082) through gluetun to the LAN.
       FIREWALL_INPUT_PORTS: "8082"
       # Let qBit (in this netns) reach the other stack containers (cross-seed
-      # webhook), let Sonarr/Radarr reach qBit, AND let gluetun reach the LAN DNS
-      # (10.7.7.1). Umbrel Docker net = 10.21.0.0/16; LAN = 10.7.7.0/24 (adjust
-      # the LAN to your own). Do NOT add broad ranges like 10.0.0.0/8: they
-      # overlap ProtonVPN's tunnel gateway (10.2.0.x) and break NAT-PMP port
+      # webhook), let Sonarr/Radarr reach qBit, AND let gluetun reach your LAN DNS.
+      # Umbrel Docker net = 10.21.0.0/16 (the default below). If you use a LAN DNS
+      # resolver, add your LAN subnet too via VPN_OUTBOUND_SUBNETS in exports.sh,
+      # e.g. "10.21.0.0/16,192.168.1.0/24". Do NOT add broad ranges like 10.0.0.0/8:
+      # they overlap ProtonVPN's tunnel gateway (10.2.0.x) and break NAT-PMP port
       # forwarding (the forwarded-port request gets routed off-tunnel).
-      FIREWALL_OUTBOUND_SUBNETS: 10.21.0.0/16,10.7.7.0/24
+      FIREWALL_OUTBOUND_SUBNETS: "${VPN_OUTBOUND_SUBNETS:-10.21.0.0/16}"
     ports:
       # qBittorrent WebUI (qBit runs in this network namespace). The BitTorrent
       # port is NOT published — incoming peers arrive via ProtonVPN's forwarded

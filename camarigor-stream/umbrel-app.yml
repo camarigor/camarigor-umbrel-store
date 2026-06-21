@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.6.10"
+version: "1.6.11"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -85,16 +85,29 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.6.11: Genericize the template so the published app carries no host-specific
+  values. gluetun's DNS resolver, startup healthcheck host and outbound subnets
+  are now driven by ${LAN_DNS}, ${VPN_HEALTHCHECK_HOST} and ${VPN_OUTBOUND_SUBNETS}
+  with safe public defaults (Cloudflare DNS, cloudflare.com healthcheck, the Umbrel
+  Docker subnet only), so it works out of the box. To use your own LAN DNS resolver
+  or an internal healthcheck host, set those in
+  ~/umbrel/app-data/camarigor-stream/exports.sh — Umbrel sources it before
+  docker compose, it stays out of the public repo, and it survives updates (see
+  README). Also a full README rewrite: component/version list, networking &
+  security model, troubleshooting, updating/backup. No image change; existing
+  installs are unaffected as long as exports.sh holds their values.
+
+
   v1.6.10: Finish the v1.6.9 DNS fix. v1.6.9 correctly pointed gluetun's DNS at
-  the LAN resolver (10.7.7.1), but the startup healthcheck still looped — this
+  the LAN resolver (<lan-dns>), but the startup healthcheck still looped — this
   time with "server misbehaving"/REFUSED instead of "no such host". Root cause
   (proven from inside gluetun's network namespace): gluetun's built-in resolver
   has DNS-REBINDING PROTECTION that REFUSES any answer resolving to a PRIVATE IP.
-  The healthcheck host (bad-gateway.tinfoilhat.work) is split-horizon and resolves
+  The healthcheck host (<healthcheck-host>) is split-horizon and resolves
   to a LAN IP, so gluetun refused it and never went healthy (public names resolved
-  fine; querying 10.7.7.1 directly resolved it fine — only gluetun's resolver
+  fine; querying <lan-dns> directly resolved it fine — only gluetun's resolver
   blocked it). Fix: exempt that host with
-  DNS_REBINDING_PROTECTION_EXEMPT_HOSTNAMES=bad-gateway.tinfoilhat.work. Set it to
+  DNS_REBINDING_PROTECTION_EXEMPT_HOSTNAMES=<healthcheck-host>. Set it to
   your own internal healthcheck host. No image change.
 
 
@@ -102,16 +115,16 @@ releaseNotes: >-
   v1.6.8 image bump (app stuck "updating", qBittorrent never starting). The newer
   build made DNS_KEEP_NAMESERVER obsolete and switched to a built-in resolver that
   only forwards single-label "local" names to the LAN DNS — full hostnames (like
-  the internal-only healthcheck host bad-gateway.tinfoilhat.work) were sent to
+  the internal-only healthcheck host <healthcheck-host>) were sent to
   Cloudflare instead, which cannot resolve them, so the startup check looped on
   "no such host" and gluetun never went healthy (qBittorrent and the port-sync
   sidecar then stayed in Created). The good news: the v1.6.8 build also FIXED the
   custom-DNS bug (#3231) that v1.6.2 ran into, so this restores the proper,
   supported config — DNS_UPSTREAM_RESOLVER_TYPE=plain +
-  DNS_UPSTREAM_PLAIN_ADDRESSES=10.7.7.1:53 (gluetun now forwards EVERY DNS query
+  DNS_UPSTREAM_PLAIN_ADDRESSES=<lan-dns>:53 (gluetun now forwards EVERY DNS query
   to the LAN resolver) — and drops the obsolete DNS_KEEP_NAMESERVER. Confirmed the
   LAN DNS resolves the internal host over plaintext before shipping. Change
-  10.7.7.1 to your own resolver. No image change.
+  <lan-dns> to your own resolver. No image change.
 
 
   v1.6.8: Update gluetun to its latest build (pinned by digest, 2026-06-14)
@@ -133,12 +146,12 @@ releaseNotes: >-
   tunnel is what detects a dead tunnel and makes gluetun reconnect to a working
   server; the rare transient restart is the price of that auto-recovery (the
   port-sync sidecar reannounces on reconnect, so it self-heals). The startup check
-  stays on the internal valid-cert host (bad-gateway) only to avoid the
+  stays on the internal valid-cert host (<healthcheck-host>) only to avoid the
   startup-window flap. No image changes.
 
 
   v1.6.6: Also point gluetun's ONGOING small-check at the LAN
-  (HEALTH_ICMP_TARGET_IPS=10.7.7.1) instead of pinging 1.1.1.1/8.8.8.8 through the
+  (HEALTH_ICMP_TARGET_IPS=<lan-dns>) instead of pinging 1.1.1.1/8.8.8.8 through the
   tunnel. After v1.6.5 fixed the startup check, a single transient tunnel ICMP
   drop still caused one VPN restart; pinging the LAN router fully decouples BOTH
   healthchecks from the tunnel, so transient tunnel blips no longer bounce the
@@ -148,14 +161,14 @@ releaseNotes: >-
 
 
   v1.6.5: Finish fixing the gluetun healthcheck so the VPN stops flapping with
-  the local DNS. v1.6.4 pointed the startup check at the router IP (10.7.7.1:443)
+  the local DNS. v1.6.4 pointed the startup check at the router IP (<lan-dns>:443)
   but gluetun VERIFIES the TLS certificate, and the router's self-signed cert has
   no IP SAN → it still flapped. Point the check at an internal-only hostname with
-  a publicly-valid cert (HEALTH_TARGET_ADDRESSES=bad-gateway.tinfoilhat.work:443):
+  a publicly-valid cert (HEALTH_TARGET_ADDRESSES=<healthcheck-host>:443):
   it resolves via the LAN DNS to local infra, is reached over the LAN (no tunnel),
   and presents a valid cert → the handshake completes and verifies → gluetun is
   healthy, no flapping, qBittorrent starts. DNS stays on the local resolver
-  (10.7.7.1). Replace the host with any internal-only host that has a valid cert.
+  (<lan-dns>). Replace the host with any internal-only host that has a valid cert.
   No image changes.
 
 
@@ -164,10 +177,10 @@ releaseNotes: >-
   cloudflare.com:443/github.com:443 through the tunnel) failed in the window right
   after WireGuard connects and — because HEALTH_RESTART_VPN is on by default —
   restarted the VPN endlessly, dropping qBittorrent every cycle. Point the startup
-  check at the LAN router (HEALTH_TARGET_ADDRESSES=10.7.7.1:443 — raw IP, always
+  check at the LAN router (HEALTH_TARGET_ADDRESSES=<lan-dns>:443 — raw IP, always
   up, serves TLS) so it passes instantly and the tunnel can settle; the ongoing
   small-check still pings 1.1.1.1/8.8.8.8 THROUGH the tunnel, so a genuinely dead
-  VPN is still detected. DNS stays on the local resolver (10.7.7.1). No image
+  VPN is still detected. DNS stays on the local resolver (<lan-dns>). No image
   changes.
 
 
@@ -175,7 +188,7 @@ releaseNotes: >-
   DNS_UPSTREAM_PLAIN_ADDRESSES but gluetun v3.41.1 ignores it and keeps using
   Cloudflare (upstream bug qdm12/gluetun#3231), so DNS never reached the local
   resolver. Work around it by keeping the container's own nameserver: set the
-  gluetun service `dns: 10.7.7.1` and DNS_KEEP_NAMESERVER=on so gluetun does not
+  gluetun service `dns: <lan-dns>` and DNS_KEEP_NAMESERVER=on so gluetun does not
   replace resolv.conf with its (buggy) internal forwarder. qBittorrent now
   resolves through the LAN DNS (OpenWRT/AdGuard); torrent traffic still tunnels.
 
@@ -184,8 +197,8 @@ releaseNotes: >-
   servers were resetting gluetun's DNS-over-TLS to Cloudflare (:853), causing
   intermittent tracker-resolution failures, VPN healthcheck bounces, and
   stalled downloads. gluetun now uses PLAINTEXT DNS to the local LAN resolver
-  (DNS_UPSTREAM_RESOLVER_TYPE=plain, DNS_UPSTREAM_PLAIN_ADDRESSES=10.7.7.1:53 —
-  change to your own resolver), and the LAN subnet (10.7.7.0/24) was added to
+  (DNS_UPSTREAM_RESOLVER_TYPE=plain, DNS_UPSTREAM_PLAIN_ADDRESSES=<lan-dns>:53 —
+  change to your own resolver), and the LAN subnet (<lan-subnet>) was added to
   FIREWALL_OUTBOUND_SUBNETS so gluetun can reach it (torrent traffic still goes
   through the VPN). Also: the qbit-port-sync sidecar now re-announces all
   torrents whenever ProtonVPN's forwarded port changes (i.e. after a VPN
