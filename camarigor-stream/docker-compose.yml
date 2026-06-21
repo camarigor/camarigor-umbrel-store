@@ -248,6 +248,14 @@ services:
       # small-check (1.1.1.1/8.8.8.8) still pings THROUGH the tunnel. Replace this
       # with any internal-only host that presents a publicly-valid cert.
       HEALTH_TARGET_ADDRESSES: bad-gateway.tinfoilhat.work:443
+      # Ongoing small-check: ping the LAN router instead of 1.1.1.1/8.8.8.8 THROUGH
+      # the tunnel, so a transient tunnel ICMP drop can't trigger a VPN restart
+      # (had 1 such restart 2026-06-21). This fully decouples BOTH healthchecks
+      # from the tunnel → no false restarts. Trade-off: a genuinely dead VPN is no
+      # longer auto-recovered (the kill-switch still blocks leaks, and the
+      # port-sync sidecar re-syncs/reannounces on any reconnect). Change to your
+      # LAN gateway / any always-up LAN IP.
+      HEALTH_ICMP_TARGET_IPS: 10.7.7.1
       # Expose qBittorrent's WebUI (8082) through gluetun to the LAN.
       FIREWALL_INPUT_PORTS: "8082"
       # Let qBit (in this netns) reach the other stack containers (cross-seed

@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.6.5"
+version: "1.6.6"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -85,6 +85,16 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.6.6: Also point gluetun's ONGOING small-check at the LAN
+  (HEALTH_ICMP_TARGET_IPS=10.7.7.1) instead of pinging 1.1.1.1/8.8.8.8 through the
+  tunnel. After v1.6.5 fixed the startup check, a single transient tunnel ICMP
+  drop still caused one VPN restart; pinging the LAN router fully decouples BOTH
+  healthchecks from the tunnel, so transient tunnel blips no longer bounce the
+  VPN. Trade-off: a genuinely dead VPN is no longer auto-recovered by gluetun
+  (the kill-switch still blocks leaks and the port-sync sidecar re-syncs on any
+  reconnect). Change to your own LAN IP. No image changes.
+
+
   v1.6.5: Finish fixing the gluetun healthcheck so the VPN stops flapping with
   the local DNS. v1.6.4 pointed the startup check at the router IP (10.7.7.1:443)
   but gluetun VERIFIES the TLS certificate, and the router's self-signed cert has
