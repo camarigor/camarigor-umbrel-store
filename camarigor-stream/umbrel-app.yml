@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.6.2"
+version: "1.6.3"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -85,6 +85,15 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.6.3: Actually use the local LAN DNS resolver. v1.6.2 set
+  DNS_UPSTREAM_PLAIN_ADDRESSES but gluetun v3.41.1 ignores it and keeps using
+  Cloudflare (upstream bug qdm12/gluetun#3231), so DNS never reached the local
+  resolver. Work around it by keeping the container's own nameserver: set the
+  gluetun service `dns: 10.7.7.1` and DNS_KEEP_NAMESERVER=on so gluetun does not
+  replace resolv.conf with its (buggy) internal forwarder. qBittorrent now
+  resolves through the LAN DNS (OpenWRT/AdGuard); torrent traffic still tunnels.
+
+
   v1.6.2: Stabilize DNS + auto-recover after VPN reconnects. ProtonVPN's BR
   servers were resetting gluetun's DNS-over-TLS to Cloudflare (:853), causing
   intermittent tracker-resolution failures, VPN healthcheck bounces, and

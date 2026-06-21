@@ -201,6 +201,14 @@ services:
       - NET_ADMIN
     devices:
       - /dev/net/tun:/dev/net/tun
+    # Point this netns's resolv.conf straight at the LAN DNS (OpenWRT/AdGuard).
+    # With DNS_KEEP_NAMESERVER=on (below) gluetun won't overwrite it — this
+    # BYPASSES gluetun v3.41.1's broken custom-upstream handling (issue #3231,
+    # which ignores DNS_UPSTREAM_PLAIN_ADDRESSES and forces Cloudflare). qBit and
+    # the sidecar share this netns, so they resolve via 10.7.7.1 too. Change this
+    # to your own LAN resolver.
+    dns:
+      - 10.7.7.1
     depends_on:
       init:
         condition: service_completed_successfully
@@ -221,14 +229,13 @@ services:
       # port-forwarding server, gluetun fails fast in its logs — change this to
       # another country (e.g. Netherlands) or remove it to auto-pick any PF server.
       SERVER_COUNTRIES: Brazil
-      # DNS: ProtonVPN's BR servers reset DNS-over-TLS to Cloudflare (:853),
-      # which broke tracker resolution and bounced the VPN healthcheck. Use
-      # PLAINTEXT DNS pointed at the local LAN resolver instead. NOTE: 10.7.7.1
-      # is THIS install's LAN DNS (OpenWRT) — change it to your own resolver.
-      # DNS then exits via the LAN (so the LAN must be in FIREWALL_OUTBOUND_SUBNETS
-      # below); torrent traffic still goes through the VPN tunnel.
-      DNS_UPSTREAM_RESOLVER_TYPE: plain
-      DNS_UPSTREAM_PLAIN_ADDRESSES: 10.7.7.1:53
+      # DNS: keep the container's own nameserver (the `dns: 10.7.7.1` above =
+      # the LAN OpenWRT/AdGuard) instead of gluetun's internal forwarder.
+      # ProtonVPN's BR servers reset gluetun's DNS-over-TLS to Cloudflare (:853),
+      # and gluetun v3.41.1's custom plaintext upstream is ignored (#3231) — so
+      # we let the LAN resolver handle DNS directly. It exits via the LAN (which
+      # is in FIREWALL_OUTBOUND_SUBNETS below); torrent traffic still tunnels.
+      DNS_KEEP_NAMESERVER: "on"
       # Expose qBittorrent's WebUI (8082) through gluetun to the LAN.
       FIREWALL_INPUT_PORTS: "8082"
       # Let qBit (in this netns) reach the other stack containers (cross-seed
