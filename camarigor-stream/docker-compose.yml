@@ -197,8 +197,10 @@ services:
     # qBittorrent by the qbit-port-sync sidecar.
     # Pinned to the latest main build by DIGEST (2026-06-14). There is no stable
     # semver newer than v3.41.1, and v3.41.1 shipped a STALE embedded server list
-    # (Feb 2026 — outdated Proton IPs caused a silent dead tunnel) plus the
-    # custom-plain-DNS bug #3231. This build has a fresher ProtonVPN server list.
+    # (Feb 2026 — outdated Proton IPs caused a silent dead tunnel). This build has
+    # a fresher ProtonVPN server list AND the refactored DNS engine that finally
+    # honours a custom plaintext upstream (the #3231 fix — see DNS settings below),
+    # which is why DNS_KEEP_NAMESERVER is gone (it became obsolete in this build).
     # Digest-pinned for reproducibility (like byparr); bump deliberately — get the
     # new digest from Docker Hub's qmcgaw/gluetun:latest.
     image: qmcgaw/gluetun@sha256:0e999c910d8077458ffbd869acfd9faa2a49decbca02afec6370277854587b3e
@@ -207,12 +209,10 @@ services:
       - NET_ADMIN
     devices:
       - /dev/net/tun:/dev/net/tun
-    # Point this netns's resolv.conf straight at the LAN DNS (OpenWRT/AdGuard).
-    # With DNS_KEEP_NAMESERVER=on (below) gluetun won't overwrite it — this
-    # BYPASSES gluetun v3.41.1's broken custom-upstream handling (issue #3231,
-    # which ignores DNS_UPSTREAM_PLAIN_ADDRESSES and forces Cloudflare). qBit and
-    # the sidecar share this netns, so they resolve via 10.7.7.1 too. Change this
-    # to your own LAN resolver.
+    # Seed this netns's resolv.conf with the LAN DNS (OpenWRT/AdGuard) so gluetun
+    # records it as the private resolver at container start. gluetun's built-in DNS
+    # then forwards to it explicitly via DNS_UPSTREAM_* below. qBit and the sidecar
+    # share this netns, so they resolve via 10.7.7.1 too. Change to your LAN resolver.
     dns:
       - 10.7.7.1
     depends_on:
@@ -235,13 +235,17 @@ services:
       # port-forwarding server, gluetun fails fast in its logs — change this to
       # another country (e.g. Netherlands) or remove it to auto-pick any PF server.
       SERVER_COUNTRIES: Brazil
-      # DNS: keep the container's own nameserver (the `dns: 10.7.7.1` above =
-      # the LAN OpenWRT/AdGuard) instead of gluetun's internal forwarder.
-      # ProtonVPN's BR servers reset gluetun's DNS-over-TLS to Cloudflare (:853),
-      # and gluetun v3.41.1's custom plaintext upstream is ignored (#3231) — so
-      # we let the LAN resolver handle DNS directly. It exits via the LAN (which
-      # is in FIREWALL_OUTBOUND_SUBNETS below); torrent traffic still tunnels.
-      DNS_KEEP_NAMESERVER: "on"
+      # DNS: gluetun's built-in resolver forwards EVERY query to the LAN DNS
+      # (10.7.7.1) over plaintext UDP. This is the supported replacement for the
+      # now-obsolete DNS_KEEP_NAMESERVER and the proper fix for issue #3231 — older
+      # builds ignored a custom plaintext upstream and forced Cloudflare, which
+      # CANNOT resolve the internal-only healthcheck host below, so gluetun looped
+      # on "lookup bad-gateway.tinfoilhat.work ... no such host" and never went
+      # healthy (qBit/sidecar then stuck in Created → app stuck "updating"). The
+      # query to 10.7.7.1 exits via the LAN (in FIREWALL_OUTBOUND_SUBNETS); torrent
+      # traffic still tunnels. qBit + sidecar share this netns -> same DNS.
+      DNS_UPSTREAM_RESOLVER_TYPE: plain
+      DNS_UPSTREAM_PLAIN_ADDRESSES: 10.7.7.1:53
       # STARTUP healthcheck target = an INTERNAL-only host with a VALID cert.
       # gluetun's DEFAULT check (TLS to cloudflare.com:443/github.com:443 THROUGH
       # the tunnel) flapped (TLS handshake EOF, 2026-06-21); a raw IP (10.7.7.1:443)

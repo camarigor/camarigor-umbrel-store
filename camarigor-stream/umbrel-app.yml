@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.6.8"
+version: "1.6.9"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -85,6 +85,22 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.6.9: Fix gluetun stuck looping on its startup healthcheck right after the
+  v1.6.8 image bump (app stuck "updating", qBittorrent never starting). The newer
+  build made DNS_KEEP_NAMESERVER obsolete and switched to a built-in resolver that
+  only forwards single-label "local" names to the LAN DNS — full hostnames (like
+  the internal-only healthcheck host bad-gateway.tinfoilhat.work) were sent to
+  Cloudflare instead, which cannot resolve them, so the startup check looped on
+  "no such host" and gluetun never went healthy (qBittorrent and the port-sync
+  sidecar then stayed in Created). The good news: the v1.6.8 build also FIXED the
+  custom-DNS bug (#3231) that v1.6.2 ran into, so this restores the proper,
+  supported config — DNS_UPSTREAM_RESOLVER_TYPE=plain +
+  DNS_UPSTREAM_PLAIN_ADDRESSES=10.7.7.1:53 (gluetun now forwards EVERY DNS query
+  to the LAN resolver) — and drops the obsolete DNS_KEEP_NAMESERVER. Confirmed the
+  LAN DNS resolves the internal host over plaintext before shipping. Change
+  10.7.7.1 to your own resolver. No image change.
+
+
   v1.6.8: Update gluetun to its latest build (pinned by digest, 2026-06-14)
   instead of the v3.41.1 release. There is no stable semver newer than v3.41.1,
   whose EMBEDDED ProtonVPN server list is a stale Feb-2026 snapshot — outdated
