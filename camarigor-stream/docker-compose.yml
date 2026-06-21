@@ -236,17 +236,18 @@ services:
       # we let the LAN resolver handle DNS directly. It exits via the LAN (which
       # is in FIREWALL_OUTBOUND_SUBNETS below); torrent traffic still tunnels.
       DNS_KEEP_NAMESERVER: "on"
-      # STARTUP healthcheck target = the LAN router (raw IP, always up, serves TLS
-      # on 443 — verified). gluetun's DEFAULT startup check (TLS handshake to
-      # cloudflare.com:443/github.com:443 THROUGH the tunnel) was failing in a tight
-      # window right after WireGuard setup and, because HEALTH_RESTART_VPN defaults
-      # on, restarting the VPN in an endless loop (flapping, 2026-06-21). Pointing
-      # the startup check at the router IP (no DNS, reached over the LAN via
-      # FIREWALL_OUTBOUND_SUBNETS) lets it pass instantly so the tunnel can settle.
-      # The ONGOING small-check (HEALTH_ICMP_TARGET_IPS=1.1.1.1,8.8.8.8) still pings
-      # THROUGH the tunnel, so a genuinely dead VPN is still detected/recovered.
-      # Change 10.7.7.1 to your LAN gateway / any always-up TLS host.
-      HEALTH_TARGET_ADDRESSES: 10.7.7.1:443
+      # STARTUP healthcheck target = an INTERNAL-only host with a VALID cert.
+      # gluetun's DEFAULT check (TLS to cloudflare.com:443/github.com:443 THROUGH
+      # the tunnel) flapped (TLS handshake EOF, 2026-06-21); a raw IP (10.7.7.1:443)
+      # flapped too because gluetun VERIFIES the cert and the router's self-signed
+      # cert has no IP SAN. bad-gateway.tinfoilhat.work resolves via the LAN DNS
+      # (10.7.7.1, split-horizon → internal only) to local infra with a VALID
+      # (Let's Encrypt) cert on :443, reached over the LAN (in
+      # FIREWALL_OUTBOUND_SUBNETS) — so the TLS handshake completes AND the cert
+      # verifies, with no dependency on the tunnel → no flapping. The ongoing ICMP
+      # small-check (1.1.1.1/8.8.8.8) still pings THROUGH the tunnel. Replace this
+      # with any internal-only host that presents a publicly-valid cert.
+      HEALTH_TARGET_ADDRESSES: bad-gateway.tinfoilhat.work:443
       # Expose qBittorrent's WebUI (8082) through gluetun to the LAN.
       FIREWALL_INPUT_PORTS: "8082"
       # Let qBit (in this netns) reach the other stack containers (cross-seed

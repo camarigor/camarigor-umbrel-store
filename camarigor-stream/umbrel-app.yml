@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.6.4"
+version: "1.6.5"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -85,6 +85,18 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.6.5: Finish fixing the gluetun healthcheck so the VPN stops flapping with
+  the local DNS. v1.6.4 pointed the startup check at the router IP (10.7.7.1:443)
+  but gluetun VERIFIES the TLS certificate, and the router's self-signed cert has
+  no IP SAN → it still flapped. Point the check at an internal-only hostname with
+  a publicly-valid cert (HEALTH_TARGET_ADDRESSES=bad-gateway.tinfoilhat.work:443):
+  it resolves via the LAN DNS to local infra, is reached over the LAN (no tunnel),
+  and presents a valid cert → the handshake completes and verifies → gluetun is
+  healthy, no flapping, qBittorrent starts. DNS stays on the local resolver
+  (10.7.7.1). Replace the host with any internal-only host that has a valid cert.
+  No image changes.
+
+
   v1.6.4: Fix gluetun VPN flapping caused by the v1.6.3 LAN-DNS change. With DNS
   pointed at the LAN, gluetun's default startup healthcheck (a TLS handshake to
   cloudflare.com:443/github.com:443 through the tunnel) failed in the window right
