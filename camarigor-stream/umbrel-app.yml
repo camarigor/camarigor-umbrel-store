@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.6.7"
+version: "1.6.8"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -85,6 +85,17 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.6.8: Update gluetun to its latest build (pinned by digest, 2026-06-14)
+  instead of the v3.41.1 release. There is no stable semver newer than v3.41.1,
+  whose EMBEDDED ProtonVPN server list is a stale Feb-2026 snapshot — outdated
+  server IPs led gluetun to connect to a dead endpoint (silent WireGuard failure
+  → zero traffic, recovered only by failover). The newer build carries a fresher
+  server list (so PORT_FORWARD_ONLY picks from current P2P/port-forwarding
+  servers with valid IPs) and likely the custom-DNS fix (#3231). Pinned by digest
+  for reproducibility; bump deliberately. This pulls a new image, so the update
+  takes a bit longer.
+
+
   v1.6.7: Revert v1.6.6 — put gluetun's ongoing healthcheck back THROUGH the
   tunnel (HEALTH_ICMP_TARGET_IPS=1.1.1.1,8.8.8.8). v1.6.6 pinged the LAN, which
   always answers, so when a ProtonVPN server had a silent WireGuard failure

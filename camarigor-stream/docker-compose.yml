@@ -195,7 +195,13 @@ services:
     # (NAT-PMP) so qBittorrent stays connectable (seeding/ratio/H&R). The dynamic
     # forwarded port is written to /gluetun/forwarded_port and pushed into
     # qBittorrent by the qbit-port-sync sidecar.
-    image: qmcgaw/gluetun:v3.41.1
+    # Pinned to the latest main build by DIGEST (2026-06-14). There is no stable
+    # semver newer than v3.41.1, and v3.41.1 shipped a STALE embedded server list
+    # (Feb 2026 — outdated Proton IPs caused a silent dead tunnel) plus the
+    # custom-plain-DNS bug #3231. This build has a fresher ProtonVPN server list.
+    # Digest-pinned for reproducibility (like byparr); bump deliberately — get the
+    # new digest from Docker Hub's qmcgaw/gluetun:latest.
+    image: qmcgaw/gluetun@sha256:0e999c910d8077458ffbd869acfd9faa2a49decbca02afec6370277854587b3e
     restart: on-failure
     cap_add:
       - NET_ADMIN
