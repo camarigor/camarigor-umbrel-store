@@ -246,6 +246,14 @@ services:
       # traffic still tunnels. qBit + sidecar share this netns -> same DNS.
       DNS_UPSTREAM_RESOLVER_TYPE: plain
       DNS_UPSTREAM_PLAIN_ADDRESSES: 10.7.7.1:53
+      # gluetun's built-in resolver has DNS-rebinding protection that REFUSES any
+      # answer pointing to a PRIVATE IP. The healthcheck host below is split-horizon
+      # and resolves (via 10.7.7.1) to a LAN IP, so without this exemption gluetun
+      # returns REFUSED for it and loops on the startup check forever (proven from
+      # inside gluetun's netns 2026-06-21: 10.7.7.1 resolves it fine, but the
+      # built-in resolver REFUSED it while public names resolved). Exempt it so the
+      # private-IP answer is allowed. List your own internal healthcheck host here.
+      DNS_REBINDING_PROTECTION_EXEMPT_HOSTNAMES: bad-gateway.tinfoilhat.work
       # STARTUP healthcheck target = an INTERNAL-only host with a VALID cert.
       # gluetun's DEFAULT check (TLS to cloudflare.com:443/github.com:443 THROUGH
       # the tunnel) flapped (TLS handshake EOF, 2026-06-21); a raw IP (10.7.7.1:443)

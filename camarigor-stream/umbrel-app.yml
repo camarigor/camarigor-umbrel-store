@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.6.9"
+version: "1.6.10"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -85,6 +85,19 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.6.10: Finish the v1.6.9 DNS fix. v1.6.9 correctly pointed gluetun's DNS at
+  the LAN resolver (10.7.7.1), but the startup healthcheck still looped — this
+  time with "server misbehaving"/REFUSED instead of "no such host". Root cause
+  (proven from inside gluetun's network namespace): gluetun's built-in resolver
+  has DNS-REBINDING PROTECTION that REFUSES any answer resolving to a PRIVATE IP.
+  The healthcheck host (bad-gateway.tinfoilhat.work) is split-horizon and resolves
+  to a LAN IP, so gluetun refused it and never went healthy (public names resolved
+  fine; querying 10.7.7.1 directly resolved it fine — only gluetun's resolver
+  blocked it). Fix: exempt that host with
+  DNS_REBINDING_PROTECTION_EXEMPT_HOSTNAMES=bad-gateway.tinfoilhat.work. Set it to
+  your own internal healthcheck host. No image change.
+
+
   v1.6.9: Fix gluetun stuck looping on its startup healthcheck right after the
   v1.6.8 image bump (app stuck "updating", qBittorrent never starting). The newer
   build made DNS_KEEP_NAMESERVER obsolete and switched to a built-in resolver that
