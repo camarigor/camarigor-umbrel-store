@@ -224,8 +224,12 @@ services:
       # Expose qBittorrent's WebUI (8082) through gluetun to the LAN.
       FIREWALL_INPUT_PORTS: "8082"
       # Let qBit (in this netns) reach the other stack containers (cross-seed
-      # webhook) and let Sonarr/Radarr reach qBit, over the Docker/LAN subnets.
-      FIREWALL_OUTBOUND_SUBNETS: 172.16.0.0/12,192.168.0.0/16,10.0.0.0/8
+      # webhook) and let Sonarr/Radarr reach qBit. Scope this to Umbrel's Docker
+      # network (umbrel_main_network = 10.21.0.0/16) ONLY. Do NOT use broad
+      # ranges like 10.0.0.0/8: they overlap ProtonVPN's tunnel gateway
+      # (10.2.0.x) and break NAT-PMP port forwarding — the forwarded-port request
+      # gets routed off-tunnel and times out (read udp ...->10.2.0.1:5351).
+      FIREWALL_OUTBOUND_SUBNETS: 10.21.0.0/16
     ports:
       # qBittorrent WebUI (qBit runs in this network namespace). The BitTorrent
       # port is NOT published — incoming peers arrive via ProtonVPN's forwarded
