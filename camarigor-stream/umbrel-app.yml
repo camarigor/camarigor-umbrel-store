@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.6.3"
+version: "1.6.4"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -85,6 +85,18 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.6.4: Fix gluetun VPN flapping caused by the v1.6.3 LAN-DNS change. With DNS
+  pointed at the LAN, gluetun's default startup healthcheck (a TLS handshake to
+  cloudflare.com:443/github.com:443 through the tunnel) failed in the window right
+  after WireGuard connects and — because HEALTH_RESTART_VPN is on by default —
+  restarted the VPN endlessly, dropping qBittorrent every cycle. Point the startup
+  check at the LAN router (HEALTH_TARGET_ADDRESSES=10.7.7.1:443 — raw IP, always
+  up, serves TLS) so it passes instantly and the tunnel can settle; the ongoing
+  small-check still pings 1.1.1.1/8.8.8.8 THROUGH the tunnel, so a genuinely dead
+  VPN is still detected. DNS stays on the local resolver (10.7.7.1). No image
+  changes.
+
+
   v1.6.3: Actually use the local LAN DNS resolver. v1.6.2 set
   DNS_UPSTREAM_PLAIN_ADDRESSES but gluetun v3.41.1 ignores it and keeps using
   Cloudflare (upstream bug qdm12/gluetun#3231), so DNS never reached the local
