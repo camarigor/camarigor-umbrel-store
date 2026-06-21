@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.6.1"
+version: "1.6.2"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -85,6 +85,19 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.6.2: Stabilize DNS + auto-recover after VPN reconnects. ProtonVPN's BR
+  servers were resetting gluetun's DNS-over-TLS to Cloudflare (:853), causing
+  intermittent tracker-resolution failures, VPN healthcheck bounces, and
+  stalled downloads. gluetun now uses PLAINTEXT DNS to the local LAN resolver
+  (DNS_UPSTREAM_RESOLVER_TYPE=plain, DNS_UPSTREAM_PLAIN_ADDRESSES=10.7.7.1:53 —
+  change to your own resolver), and the LAN subnet (10.7.7.0/24) was added to
+  FIREWALL_OUTBOUND_SUBNETS so gluetun can reach it (torrent traffic still goes
+  through the VPN). Also: the qbit-port-sync sidecar now re-announces all
+  torrents whenever ProtonVPN's forwarded port changes (i.e. after a VPN
+  reconnect/new exit IP), so downloads/seeds recover automatically instead of
+  stalling until qBit's next scheduled announce. No image changes.
+
+
   v1.6.1: Fix ProtonVPN port forwarding. v1.6.0 set gluetun
   FIREWALL_OUTBOUND_SUBNETS to broad private ranges (incl. 10.0.0.0/8), which
   overlapped ProtonVPN's tunnel gateway (10.2.0.x) and made the NAT-PMP

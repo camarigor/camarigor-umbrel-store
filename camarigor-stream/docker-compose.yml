@@ -221,15 +221,23 @@ services:
       # port-forwarding server, gluetun fails fast in its logs — change this to
       # another country (e.g. Netherlands) or remove it to auto-pick any PF server.
       SERVER_COUNTRIES: Brazil
+      # DNS: ProtonVPN's BR servers reset DNS-over-TLS to Cloudflare (:853),
+      # which broke tracker resolution and bounced the VPN healthcheck. Use
+      # PLAINTEXT DNS pointed at the local LAN resolver instead. NOTE: 10.7.7.1
+      # is THIS install's LAN DNS (OpenWRT) — change it to your own resolver.
+      # DNS then exits via the LAN (so the LAN must be in FIREWALL_OUTBOUND_SUBNETS
+      # below); torrent traffic still goes through the VPN tunnel.
+      DNS_UPSTREAM_RESOLVER_TYPE: plain
+      DNS_UPSTREAM_PLAIN_ADDRESSES: 10.7.7.1:53
       # Expose qBittorrent's WebUI (8082) through gluetun to the LAN.
       FIREWALL_INPUT_PORTS: "8082"
       # Let qBit (in this netns) reach the other stack containers (cross-seed
-      # webhook) and let Sonarr/Radarr reach qBit. Scope this to Umbrel's Docker
-      # network (umbrel_main_network = 10.21.0.0/16) ONLY. Do NOT use broad
-      # ranges like 10.0.0.0/8: they overlap ProtonVPN's tunnel gateway
-      # (10.2.0.x) and break NAT-PMP port forwarding — the forwarded-port request
-      # gets routed off-tunnel and times out (read udp ...->10.2.0.1:5351).
-      FIREWALL_OUTBOUND_SUBNETS: 10.21.0.0/16
+      # webhook), let Sonarr/Radarr reach qBit, AND let gluetun reach the LAN DNS
+      # (10.7.7.1). Umbrel Docker net = 10.21.0.0/16; LAN = 10.7.7.0/24 (adjust
+      # the LAN to your own). Do NOT add broad ranges like 10.0.0.0/8: they
+      # overlap ProtonVPN's tunnel gateway (10.2.0.x) and break NAT-PMP port
+      # forwarding (the forwarded-port request gets routed off-tunnel).
+      FIREWALL_OUTBOUND_SUBNETS: 10.21.0.0/16,10.7.7.0/24
     ports:
       # qBittorrent WebUI (qBit runs in this network namespace). The BitTorrent
       # port is NOT published — incoming peers arrive via ProtonVPN's forwarded
@@ -372,6 +380,13 @@ services:
               --data-urlencode "json={\"listen_port\":$$P,\"random_port\":false,\"upnp\":false}" \
               http://127.0.0.1:8082/api/v2/app/setPreferences >/dev/null 2>&1; then
               LAST="$$P"; echo "[qbit-port-sync] listen_port=$$P"
+              # Port changed => gluetun reconnected with a NEW exit IP. Re-announce
+              # all torrents so trackers learn the new IP:port immediately, else
+              # downloads/seeds stall until qBit's next scheduled announce.
+              curl -fsS -H "Referer: http://127.0.0.1:8082" \
+                --data-urlencode "hashes=all" \
+                http://127.0.0.1:8082/api/v2/torrents/reannounce >/dev/null 2>&1 \
+                && echo "[qbit-port-sync] reannounced all torrents"
             fi
           fi
           sleep 60
