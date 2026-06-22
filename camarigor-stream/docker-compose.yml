@@ -48,7 +48,15 @@ services:
           /app-data/data/media/movies \
           /app-data/data/media/tv
     volumes:
+      # /app-data exposes the whole app-data tree (so the config dirs get created).
+      # The data dir is ALSO mounted explicitly so this init still works when
+      # ${APP_DATA_DIR}/data is a SYMLINK to external storage: Docker resolves the
+      # symlink for THIS mount, so /app-data/data is the real data dir inside the
+      # container. Without it, init cannot create /app-data/data/* through a symlink
+      # that points outside the container (mkdir fails "No such file or directory").
+      # Harmless (same dir) when data is a normal directory/bind mount.
       - ${APP_DATA_DIR}:/app-data
+      - ${APP_DATA_DIR}/data:/app-data/data
 
   jellyfin:
     # Official Jellyfin image (migrated from linuxserver.io 2026-06-11): it ships

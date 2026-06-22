@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.6.11"
+version: "1.6.12"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -85,6 +85,19 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.6.12: The init service now also mounts ${APP_DATA_DIR}/data at /app-data/data.
+  This lets init work when the app's data dir is a SYMLINK to external storage
+  (Docker resolves the symlink for this mount), which is the supported way to keep a
+  large media library OUTSIDE umbrelOS's Files-app watch path. Background: if the
+  bulk media sits inside the app-data dir (e.g. bind-mounted there), umbrelOS's Files
+  app recursively watches + THUMBNAILS it (spawning convert/ffmpeg per video file),
+  which overloads the umbreld process and wedges its dashboard (the apps themselves
+  keep running). Symlinking the data dir to an external mount stops that (umbreld's
+  @parcel/watcher does not follow symlinks); this init mount is what makes that
+  layout boot cleanly. Harmless (same directory) for normal/bind data layouts. No
+  image change.
+
+
   v1.6.11: Genericize the template so the published app carries no host-specific
   values. gluetun's DNS resolver, startup healthcheck host and outbound subnets
   are now driven by ${LAN_DNS}, ${VPN_HEALTHCHECK_HOST} and ${VPN_OUTBOUND_SUBNETS}
