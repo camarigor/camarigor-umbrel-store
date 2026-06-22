@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-meshmonitor
 category: networking
 name: MeshMonitor
-version: "4.10.1"
+version: "4.11.5"
 tagline: Self-hosted Meshtastic monitoring with real-time maps, messages, and alerts
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-meshmonitor/icon.png
 description: >-
@@ -52,6 +52,30 @@ path: ""
 defaultUsername: "admin"
 defaultPassword: "changeme"
 releaseNotes: >-
+  v4.11.5: Image updated 4.10.1 → 4.11.5 (rolls in the upstream 4.11.0 GA
+  through the 4.11.5 hotfix). The HTTPS reverse-proxy packaging from v4.9.5
+  (ALLOWED_ORIGINS + COOKIE_SECURE) is retained — no packaging change.
+  Headlines from 4.11.0: a "MeshCore virtual node" (connect the MeshCore app
+  over WiFi on port 5000, admin commands blocked by default), a per-node "Hide
+  from Map" toggle across both protocols, a 15m–7d telemetry time-range
+  selector on Node Details, node-list export (CSV/HTML), and native OIDC
+  group→role mapping (OIDC_GROUPS_CLAIM / OIDC_ADMIN_GROUPS /
+  OIDC_ALLOWED_GROUPS). 4.11.1 adds an Auto-Acknowledge 2×2 matrix
+  (Channel/Direct × 0-hop/Multi-hop, with independent Message/Tapback/DM
+  toggles), device-notification toasts, and MeshCore node-type icons + map
+  filtering by role. 4.11.3 adds a "Dead Drop / Mailbox" async auto-responder,
+  MeshCore node favoriting, FEM LNA Mode LoRa config, and bundles the MeshCore
+  CLI in the image. Key fixes across the range: offline nodes no longer show as
+  "recently heard" from replayed MQTT, a NodeInfo position-precision guard,
+  ReDoS hardening (RE2 for user regexes), per-source scoping for
+  traceroute/neighbor history, and PostgreSQL/MySQL migration crash fixes
+  (4.11.2, 4.11.5) — Umbrel runs SQLite, so those PG-only boot loops never hit
+  this deploy, but 4.11.5 is the clean fully-patched build. Database migrations
+  through 096 are idempotent and run automatically on first start; no manual
+  migration, no breaking changes. (Upstream 4.11.4 was retracted for a Postgres
+  boot loop and is superseded by 4.11.5.)
+
+
   v4.10.1: Image updated 4.9.4 → 4.10.1 (rolls in the upstream 4.10.0 + 4.10.1
   releases). The HTTPS reverse-proxy packaging from v4.9.5 (ALLOWED_ORIGINS +
   COOKIE_SECURE) is retained. Headlines: Automated Remote Favorites management
