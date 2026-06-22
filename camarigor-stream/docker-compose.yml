@@ -237,6 +237,19 @@ services:
       # 10.2.0.2/32) to config/gluetun/wireguard_addresses (see README).
       WIREGUARD_PRIVATE_KEY_SECRETFILE: /gluetun/wireguard_private_key
       WIREGUARD_ADDRESSES_SECRETFILE: /gluetun/wireguard_addresses
+      # FIXED WireGuard MTU. Without this, gluetun runs Path-MTU discovery (PMTUD),
+      # which is buggy (gluetun#3108 / #3142): on some ProtonVPN servers PMTUD fails
+      # (ICMP blocked on the path), gluetun reverts tun0 to a fallback MTU and large
+      # packets get black-holed -> torrent throughput collapses to near zero, while
+      # the healthcheck (small packets) still passes, so gluetun never auto-recovers
+      # (you only notice via slow downloads). Pinning a safe MTU bypasses discovery.
+      # 1400 is the value gluetun's PMTUD measured working THROUGH the tunnel on a
+      # good server; a DF ping to the WireGuard endpoint measured this link's path
+      # MTU at a clean 1500 (no PPPoE limit), so 1400 sits ~40 bytes below the 1440
+      # ceiling a 1500 path allows -> proven AND with margin. Raise toward 1420 for a
+      # bit more speed (untested through the tunnel); if a DIFFERENT server ever
+      # collapses even at this MTU it is a dead server -> switch servers, don't lower.
+      WIREGUARD_MTU: "1400"
       VPN_PORT_FORWARDING: "on"
       VPN_PORT_FORWARDING_STATUS_FILE: /gluetun/forwarded_port
       PORT_FORWARD_ONLY: "on"

@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.6.12"
+version: "1.6.13"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -85,6 +85,18 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.6.13: Pin the WireGuard MTU to 1400 (WIREGUARD_MTU). gluetun's automatic
+  Path-MTU discovery (PMTUD) is buggy (gluetun#3108 / #3142): on some ProtonVPN
+  servers it fails (ICMP blocked on the path), reverts tun0 to a fallback MTU and
+  black-holes large packets, collapsing torrent throughput to near zero -- while the
+  healthcheck (small packets) keeps passing, so it never auto-recovers and you just
+  see slow downloads. A fixed MTU bypasses the discovery and that failure mode. 1400
+  is what PMTUD measured working through the tunnel on a good server; a DF-ping to the
+  WireGuard endpoint measured the underlying path at a clean 1500, so 1400 sits ~40
+  bytes below the 1440 ceiling a 1500 path allows -- proven and with margin. No image
+  change.
+
+
   v1.6.12: The init service now also mounts ${APP_DATA_DIR}/data at /app-data/data.
   This lets init work when the app's data dir is a SYMLINK to external storage
   (Docker resolves the symlink for this mount), which is the supported way to keep a
