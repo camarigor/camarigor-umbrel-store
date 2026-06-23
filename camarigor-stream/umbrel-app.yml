@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.6.13"
+version: "1.6.14"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -42,6 +42,11 @@ description: >-
     traffic through this WireGuard tunnel with a kill-switch and
     ProtonVPN port forwarding (P2P servers), so torrents stay connectable
     without leaking the real IP. Requires a ProtonVPN paid plan.
+
+  - Threadfin (34400): optional M3U proxy/filter for IPTV. A raw Xtream/M3U
+    provider playlist can carry hundreds of thousands of entries — far too
+    many for Jellyfin's Live TV — so Threadfin lets you select just the
+    channels you want and serves a small M3U + XMLTV guide to Jellyfin.
 
 
   Data layout (single volume — hardlinks between downloads and library,
@@ -85,6 +90,16 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.6.14: Add Threadfin (M3U proxy, pinned by digest = v1.2.37) as optional IPTV
+  middleware in front of Jellyfin's Live TV. A raw Xtream/M3U provider playlist can
+  be hundreds of thousands of entries (live + the entire VOD catalog), which
+  Jellyfin's Live TV cannot index -- playback fails with "Unable to find host to play
+  channel". Point Threadfin (web UI on port 34400) at the provider URL, select only
+  the channels you want, and it serves a small, clean M3U + XMLTV to Jellyfin. It
+  egresses directly (NOT through the VPN, since it is not torrent traffic); config
+  persists in config/threadfin. No change to existing services.
+
+
   v1.6.13: Pin the WireGuard MTU to 1400 (WIREGUARD_MTU). gluetun's automatic
   Path-MTU discovery (PMTUD) is buggy (gluetun#3108 / #3142): on some ProtonVPN
   servers it fails (ICMP blocked on the path), reverts tun0 to a fallback MTU and

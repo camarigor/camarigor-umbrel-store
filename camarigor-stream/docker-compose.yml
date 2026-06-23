@@ -22,6 +22,7 @@ services:
           /app-data/config/cross-seed \
           /app-data/config/unpackerr \
           /app-data/config/gluetun \
+          /app-data/config/threadfin \
           /app-data/data/torrents/movies \
           /app-data/data/torrents/tv \
           /app-data/data/torrents/cross-seed \
@@ -39,6 +40,7 @@ services:
           /app-data/config/cross-seed \
           /app-data/config/unpackerr \
           /app-data/config/gluetun \
+          /app-data/config/threadfin \
           /app-data/data \
           /app-data/data/torrents \
           /app-data/data/torrents/movies \
@@ -193,6 +195,31 @@ services:
       - "9696:9696"
     volumes:
       - ${APP_DATA_DIR}/config/prowlarr:/config
+
+  threadfin:
+    # Threadfin: M3U proxy/filter (xTeVe fork) that sits in front of Jellyfin's Live
+    # TV. A raw IPTV/Xtream provider playlist can be hundreds of thousands of entries
+    # (live channels + the entire VOD catalog), which Jellyfin's Live TV cannot
+    # handle (channel resolution breaks -> "Unable to find host to play channel").
+    # Point Threadfin at the provider M3U/Xtream URL, pick ONLY the channels you want
+    # in its web UI (port 34400), and it serves a small, clean M3U + XMLTV to Jellyfin.
+    # Egresses DIRECTLY (NOT through the VPN) — it is not torrent traffic. Pinned by
+    # digest (= v1.2.37, multi-arch).
+    image: fyb3roptik/threadfin@sha256:96122ab220e14b881cbd40d7f8c7b022e1f9c6ecfe05aca2ab801e0321dc0d61
+    restart: on-failure
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: America/Sao_Paulo
+    ports:
+      - "34400:34400"
+    volumes:
+      - ${APP_DATA_DIR}/config/threadfin:/home/threadfin/conf
 
   gluetun:
     # ProtonVPN gateway for qBittorrent (24/7). ALL qBittorrent traffic egresses
