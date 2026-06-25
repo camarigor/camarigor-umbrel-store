@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.6.14"
+version: "1.6.15"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -90,6 +90,16 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.6.15: Routine image updates. Sonarr 4.0.17.2952-ls313 to 4.0.18.2971-ls315
+  (upstream patch). gluetun re-pinned by digest to a newer latest main build
+  (2026-06-24, was the 2026-06-14 pin) -- still ahead of the v3.41.1 release,
+  whose embedded ProtonVPN server list is a stale Feb-2026 snapshot, so it keeps
+  the fresher server list and the custom-DNS (#3231) fix. Everything else
+  (Jellyfin, Seerr, Radarr, Bazarr, Prowlarr, qBittorrent, Byparr, cross-seed,
+  Unpackerr, Threadfin) was already current. gluetun pulls a new image, so the
+  update takes a bit longer; verify the VPN and qBittorrent right after updating.
+
+
   v1.6.14: Add Threadfin (M3U proxy, pinned by digest = v1.2.37) as optional IPTV
   middleware in front of Jellyfin's Live TV. A raw Xtream/M3U provider playlist can
   be hundreds of thousands of entries (live + the entire VOD catalog), which
