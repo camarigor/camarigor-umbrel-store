@@ -433,27 +433,24 @@ services:
     # headless browser. Verified to work under no-new-privileges (2026-06-07).
     # No semver tags upstream (only latest/main) — pinned by digest for
     # reproducibility; bump the digest deliberately to update it.
-    # On the BRIDGE (NOT behind the VPN), so it egresses via the host's residential
-    # IP. Deliberate: Cloudflare-protected indexers (e.g. 1337x, EZTV) BAN the VPN's
-    # datacenter IP ranges (HTTP 403 / Cloudflare "error code: 1006"), so the solver
-    # must reach them from a non-datacenter IP. Verified empirically (2026-06-26):
-    # every AirVPN server across 6 countries returns 403 on all 1337x domains. WebUI
-    # 8191 is published on the host so the in-netns Prowlarr reaches it at
-    # http://<host-ip>:8191. Trade-off: ONLY the indexers tagged for this solver
-    # (1337x, EZTV) egress via the home IP; every other indexer AND all torrent
-    # traffic still goes through the VPN.
+    # Routed through the VPN (shares gluetun's netns) — Prowlarr reaches it over
+    # loopback at http://localhost:8191. NOTE: Cloudflare-protected indexers (1337x,
+    # EZTV) ban the VPN's datacenter IPs (HTTP 403 / "error code: 1006"), so they do
+    # NOT work from here. Running byparr on the bridge (home IP) was tried in v1.7.2
+    # and reverted in v1.7.3: the home IP only helps if Prowlarr ALSO leaves the VPN
+    # (the cf_clearance cookie is IP-bound), which wasn't worth taking the whole
+    # indexer search off the VPN — 1337x was dropped instead.
     image: ghcr.io/thephaseless/byparr@sha256:01a46a2865d9a6db5eb8ead04ec0dd33b8fbe233e8565ae70b50d4cc0af4cfb0
     restart: on-failure
     shm_size: "2gb"
+    network_mode: "service:gluetun"
     depends_on:
-      init:
-        condition: service_completed_successfully
+      gluetun:
+        condition: service_healthy
     security_opt:
       - no-new-privileges:true
     environment:
       TZ: America/Sao_Paulo
-    ports:
-      - "8191:8191"
 
   cross-seed:
     image: ghcr.io/cross-seed/cross-seed:6.13.7

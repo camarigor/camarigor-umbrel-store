@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.7.2"
+version: "1.7.3"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -39,12 +39,11 @@ description: >-
     .rNN archives) so Sonarr and Radarr can import them.
 
   - gluetun (internal): VPN gateway for the WHOLE acquisition stack.
-    qBittorrent, Sonarr, Radarr, Prowlarr, Jellyseerr, Bazarr, cross-seed and
-    Threadfin all route their traffic through this WireGuard tunnel with a
+    qBittorrent, Sonarr, Radarr, Prowlarr, Jellyseerr, Bazarr, Byparr, cross-seed
+    and Threadfin all route their traffic through this WireGuard tunnel with a
     kill-switch — if the tunnel drops they lose internet instead of leaking the
-    real IP — plus a static forwarded port so torrents stay connectable. (Byparr
-    is the exception: it stays on the bridge / home IP — see the Byparr note and
-    release v1.7.2.) Requires a paid VPN with WireGuard and port forwarding.
+    real IP — plus a static forwarded port so torrents stay connectable. Requires
+    a paid VPN with WireGuard and port forwarding.
 
   - Threadfin (34400): optional M3U proxy/filter for IPTV. A raw Xtream/M3U
     provider playlist can carry hundreds of thousands of entries — far too
@@ -66,8 +65,7 @@ description: >-
      create the movies/tv categories.
 
   2. Prowlarr: add indexers + Byparr (Indexer Proxy type "FlareSolverr",
-     Host http://HOST-LAN-IP:8191 — Byparr runs on the bridge, not in the VPN
-     netns) and connect Sonarr/Radarr.
+     Host http://localhost:8191) and connect Sonarr/Radarr.
 
   3. Sonarr/Radarr: root folders /data/media/{tv,movies} + download
      client host localhost, port 8082 (all services share the VPN netns).
@@ -94,10 +92,20 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.7.3: Revert v1.7.2 — Byparr goes back into the VPN netns, so the whole
+  acquisition stack is on the VPN again. Moving Byparr to the bridge let it reach
+  1337x/EZTV from the home IP, but Cloudflare's cf_clearance cookie is IP-bound, so
+  Prowlarr (still in the VPN netns) couldn't reuse it — those indexers only work if
+  Prowlarr ALSO leaves the VPN, which would take ALL indexer searches off the VPN.
+  Not worth it: 1337x was dropped instead and Byparr is back on the VPN with
+  everything else. Set the Prowlarr Indexer Proxy (FlareSolverr) Host back to
+  http://localhost:8191. No image change.
+
+
   v1.7.2: Move Byparr (the Cloudflare solver) OUT of the VPN, onto the bridge, so
   it egresses via the host's residential IP. Cloudflare-protected indexers (1337x,
   EZTV) ban the VPN's datacenter IP ranges (HTTP 403 / "error code: 1006") — verified
-  across ~38 AirVPN servers in 6 countries, all banned — so the solver can only reach
+  across ~38 VPN servers in 6 countries, all banned — so the solver can only reach
   them from a non-datacenter IP. Byparr now publishes :8191 on the host and Prowlarr
   (in the VPN netns) reaches it at http://HOST-LAN-IP:8191 (set the Indexer Proxy Host
   accordingly). Trade-off: ONLY the Byparr-tagged indexers (1337x, EZTV) egress via the

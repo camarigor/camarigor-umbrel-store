@@ -7,13 +7,12 @@ and it shows up in Jellyfin — using **hardlinks**, so a file is never duplicat
 on disk and keeps seeding while it sits in your library.
 
 > **The whole acquisition stack runs behind the VPN (gluetun).** qBittorrent,
-> Sonarr, Radarr, Prowlarr, Jellyseerr, Bazarr, cross-seed and Threadfin
+> Sonarr, Radarr, Prowlarr, Jellyseerr, Bazarr, Byparr, cross-seed and Threadfin
 > all share gluetun's network namespace, so they egress through the WireGuard
 > tunnel and have **no hostname of their own** — internally they reach each other
 > over **`localhost`**, and their WebUIs are published by gluetun on the host (so
 > the LAN and a reverse proxy reach them at `<host>:<port>` unchanged). Only
-> **Jellyfin**, **Unpackerr** and **Byparr** stay on Umbrel's bridge (Byparr on
-> the home IP, since Cloudflare-protected indexers ban VPN IPs).
+> **Jellyfin** and **Unpackerr** stay on Umbrel's bridge.
 
 ## Requirements
 
@@ -42,7 +41,7 @@ on disk and keeps seeding while it sits in your library.
 | **qBittorrent** | 8082 | `linuxserver/qbittorrent:5.2.2_v2.0.13-ls462` | Download client — via VPN |
 | **Threadfin** | 34400 | `fyb3roptik/threadfin` (digest-pinned) | Optional IPTV M3U/EPG proxy in front of Jellyfin Live TV — via VPN |
 | **gluetun** | internal | `qmcgaw/gluetun` (digest-pinned) | VPN gateway for the whole acquisition stack (WireGuard + kill-switch + static port forwarding) |
-| **Byparr** | `8191` | `thephaseless/byparr` (digest-pinned) | Cloudflare solver (FlareSolverr API) — **on the bridge** (home IP) for indexers that ban VPN IPs (1337x, EZTV) |
+| **Byparr** | internal `8191` | `thephaseless/byparr` (digest-pinned) | Cloudflare solver, FlareSolverr-compatible API — via VPN |
 | **cross-seed** | internal `2468` | `cross-seed/cross-seed:6.13.7` | Re-seeds finished downloads on other trackers (hardlink) — via VPN |
 | **Unpackerr** | internal | `golift/unpackerr:0.15.2` | Auto-extracts RAR/scene releases for the *arrs — on the bridge |
 | **init** | — | `busybox:stable` | One-shot: creates the config/data directory tree and fixes ownership before anything starts |
@@ -90,13 +89,13 @@ Per-service config lives under `~/umbrel/app-data/camarigor-stream/config/<servi
 ## Networking & security
 
 - **Two network zones.** The whole acquisition stack — qBittorrent, Sonarr,
-  Radarr, Prowlarr, Jellyseerr, Bazarr, cross-seed and Threadfin — shares
+  Radarr, Prowlarr, Jellyseerr, Bazarr, Byparr, cross-seed and Threadfin — shares
   **gluetun's** network namespace, so those services have **no hostname of their
   own** and reach each other over **`localhost`** (e.g. download client
-  `localhost:8082`, Prowlarr `localhost:9696`,
+  `localhost:8082`, Byparr `localhost:8191`, Prowlarr `localhost:9696`,
   cross-seed webhook `localhost:2468`). Their WebUIs are **published by gluetun**
   on the host, so the LAN and a reverse proxy reach them at `<host>:<port>`
-  unchanged. **Jellyfin**, **Unpackerr** and **Byparr** stay on Umbrel's bridge: they
+  unchanged. Only **Jellyfin** and **Unpackerr** stay on Umbrel's bridge: they
   reach the in-netns services at **`gluetun:<port>`** (e.g. Unpackerr →
   `gluetun:8989`), and Jellyseerr reaches Jellyfin back at the **host LAN IP**.
 - **Kill-switch:** gluetun blocks all non-VPN egress. If the tunnel drops, **every
@@ -120,7 +119,7 @@ Per-service config lives under `~/umbrel/app-data/camarigor-stream/config/<servi
 ## VPN — gluetun
 
 **All** acquisition-stack traffic egresses through a VPN WireGuard tunnel —
-qBittorrent plus Sonarr, Radarr, Prowlarr, Jellyseerr, Bazarr, cross-seed
+qBittorrent plus Sonarr, Radarr, Prowlarr, Jellyseerr, Bazarr, Byparr, cross-seed
 and Threadfin, which all share gluetun's network namespace.
 
 - **Protocol:** WireGuard (`VPN_TYPE=wireguard`, provider `${VPN_PROVIDER}` set in
@@ -197,7 +196,7 @@ After editing `exports.sh`, restart the app (Umbrel → app → Restart, or re-u
 1. Create user/password on first access (Authentication: Forms).
 2. Settings → Indexers → Add Indexer Proxy → **FlareSolverr** (Byparr is
    API-compatible, so the proxy type stays "FlareSolverr"): Host
-   `http://<umbrel-host-ip>:8191`, Tag `byparr` (Byparr runs on the bridge — reach it via the host IP, not localhost).
+   `http://localhost:8191`, Tag `byparr`.
 3. Indexers → Add: register your public indexers (apply the `byparr` tag on
    Cloudflare-protected ones) and private trackers (tracker API key).
 4. Settings → Apps → Add:
