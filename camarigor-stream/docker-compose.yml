@@ -67,6 +67,9 @@ services:
     # "FFmpeg exited with code 237 / Failed to get number of OpenCL platforms".
     # Same version (10.11.11) as the prior LSIO digest: pure vendor swap, no DB
     # schema migration.
+    # Stays on the bridge (NOT behind the VPN): it serves local streaming + uses the
+    # iGPU, and the LAN must reach it directly. It pulls Live TV from Threadfin (now
+    # in the VPN netns) at http://gluetun:34400.
     image: jellyfin/jellyfin:10.11.11
     restart: on-failure
     stop_grace_period: 30s
@@ -108,25 +111,35 @@ services:
     # Run as non-root: the image defaults to root and litters the bind
     # mount with root-owned files (found during local testing 2026-06-05).
     user: "1000:1000"
+    # Routed through the VPN: shares gluetun's network namespace, so it has NO own
+    # ports/hostname. WebUI 5055 is published by gluetun; reach it at <host>:5055
+    # from the LAN/reverse-proxy and at localhost:5055 from the other in-netns
+    # services. Seerr -> Sonarr/Radarr use localhost; Seerr -> Jellyfin uses the host
+    # LAN IP (Jellyfin stays on the bridge, unreachable by container name from here).
+    network_mode: "service:gluetun"
     depends_on:
-      init:
-        condition: service_completed_successfully
+      gluetun:
+        condition: service_healthy
     security_opt:
       - no-new-privileges:true
     environment:
       TZ: America/Sao_Paulo
       PORT: "5055"
-    ports:
-      - "5055:5055"
     volumes:
       - ${APP_DATA_DIR}/config/jellyseerr:/app/config
 
   sonarr:
     image: lscr.io/linuxserver/sonarr:4.0.18.2971-ls315
     restart: on-failure
+    # Routed through the VPN: shares gluetun's netns (no own ports/hostname). WebUI
+    # 8989 is published by gluetun; reach it at <host>:8989 from the LAN/reverse-proxy
+    # and at localhost:8989 from the other in-netns services. Its download client
+    # (qBittorrent) and Prowlarr are now at localhost; unpackerr (on the bridge)
+    # reaches Sonarr at http://gluetun:8989.
+    network_mode: "service:gluetun"
     depends_on:
-      init:
-        condition: service_completed_successfully
+      gluetun:
+        condition: service_healthy
     security_opt:
       - no-new-privileges:true
     environment:
@@ -134,8 +147,6 @@ services:
       PGID: "1000"
       TZ: America/Sao_Paulo
       UMASK: "002"
-    ports:
-      - "8989:8989"
     volumes:
       - ${APP_DATA_DIR}/config/sonarr:/config
       - ${APP_DATA_DIR}/data:/data
@@ -143,9 +154,14 @@ services:
   radarr:
     image: lscr.io/linuxserver/radarr:6.2.1.10461-ls305
     restart: on-failure
+    # Routed through the VPN: shares gluetun's netns (no own ports/hostname). WebUI
+    # 7878 is published by gluetun; reach it at <host>:7878 from the LAN/reverse-proxy
+    # and at localhost:7878 from the other in-netns services. unpackerr (on the
+    # bridge) reaches Radarr at http://gluetun:7878.
+    network_mode: "service:gluetun"
     depends_on:
-      init:
-        condition: service_completed_successfully
+      gluetun:
+        condition: service_healthy
     security_opt:
       - no-new-privileges:true
     environment:
@@ -153,8 +169,6 @@ services:
       PGID: "1000"
       TZ: America/Sao_Paulo
       UMASK: "002"
-    ports:
-      - "7878:7878"
     volumes:
       - ${APP_DATA_DIR}/config/radarr:/config
       - ${APP_DATA_DIR}/data:/data
@@ -162,9 +176,14 @@ services:
   bazarr:
     image: lscr.io/linuxserver/bazarr:v1.5.6-ls350
     restart: on-failure
+    # Routed through the VPN: shares gluetun's netns (no own ports/hostname). WebUI
+    # 6767 is published by gluetun; reach it at <host>:6767 from the LAN/reverse-proxy
+    # and at localhost:6767 from the other in-netns services. Bazarr -> Sonarr/Radarr
+    # use 127.0.0.1.
+    network_mode: "service:gluetun"
     depends_on:
-      init:
-        condition: service_completed_successfully
+      gluetun:
+        condition: service_healthy
     security_opt:
       - no-new-privileges:true
     environment:
@@ -172,8 +191,6 @@ services:
       PGID: "1000"
       TZ: America/Sao_Paulo
       UMASK: "002"
-    ports:
-      - "6767:6767"
     volumes:
       - ${APP_DATA_DIR}/config/bazarr:/config
       - ${APP_DATA_DIR}/data:/data
@@ -181,9 +198,14 @@ services:
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:2.4.0.5397-ls149
     restart: on-failure
+    # Routed through the VPN: shares gluetun's netns (no own ports/hostname). WebUI
+    # 9696 is published by gluetun; reach it at <host>:9696 from the LAN/reverse-proxy
+    # and at localhost:9696 from the other in-netns services. Prowlarr -> Sonarr/
+    # Radarr and Prowlarr -> byparr (FlareSolverr proxy) use localhost.
+    network_mode: "service:gluetun"
     depends_on:
-      init:
-        condition: service_completed_successfully
+      gluetun:
+        condition: service_healthy
     security_opt:
       - no-new-privileges:true
     environment:
@@ -191,8 +213,6 @@ services:
       PGID: "1000"
       TZ: America/Sao_Paulo
       UMASK: "002"
-    ports:
-      - "9696:9696"
     volumes:
       - ${APP_DATA_DIR}/config/prowlarr:/config
 
@@ -203,37 +223,40 @@ services:
     # handle (channel resolution breaks -> "Unable to find host to play channel").
     # Point Threadfin at the provider M3U/Xtream URL, pick ONLY the channels you want
     # in its web UI (port 34400), and it serves a small, clean M3U + XMLTV to Jellyfin.
-    # Egresses DIRECTLY (NOT through the VPN) — it is not torrent traffic. Pinned by
-    # digest (= v1.2.37, multi-arch).
+    # Routed through the VPN (shares gluetun's netns) — all acquisition-side traffic
+    # egresses via the tunnel. WebUI 34400 is published by gluetun; Jellyfin (on the
+    # bridge) pulls its M3U/EPG at http://gluetun:34400. Pinned by digest
+    # (= v1.2.37, multi-arch).
     image: fyb3roptik/threadfin@sha256:96122ab220e14b881cbd40d7f8c7b022e1f9c6ecfe05aca2ab801e0321dc0d61
     restart: on-failure
+    network_mode: "service:gluetun"
     depends_on:
-      init:
-        condition: service_completed_successfully
+      gluetun:
+        condition: service_healthy
     security_opt:
       - no-new-privileges:true
     environment:
       PUID: "1000"
       PGID: "1000"
       TZ: America/Sao_Paulo
-    ports:
-      - "34400:34400"
     volumes:
       - ${APP_DATA_DIR}/config/threadfin:/home/threadfin/conf
 
   gluetun:
-    # ProtonVPN gateway for qBittorrent (24/7). ALL qBittorrent traffic egresses
-    # through this WireGuard tunnel; gluetun's built-in kill-switch blocks every
-    # non-VPN packet, so if the tunnel drops qBit loses internet instead of
-    # leaking the real IP. PORT_FORWARD_ONLY=on connects ONLY to P2P/
-    # port-forwarding servers; VPN_PORT_FORWARDING=on requests a forwarded port
-    # (NAT-PMP) so qBittorrent stays connectable (seeding/ratio/H&R). The dynamic
-    # forwarded port is written to /gluetun/forwarded_port and pushed into
-    # qBittorrent by the qbit-port-sync sidecar.
+    # VPN gateway for the ENTIRE acquisition stack (24/7). qBittorrent, Sonarr,
+    # Radarr, Prowlarr, Jellyseerr, Bazarr, byparr, cross-seed and Threadfin all
+    # share this container's network namespace, so EVERY one of them egresses through
+    # this WireGuard tunnel. gluetun's built-in kill-switch blocks every non-VPN
+    # packet, so if the tunnel drops they lose internet instead of leaking the real
+    # IP. Port forwarding is STATIC (a port reserved in the VPN provider's panel, set
+    # via VPN_FORWARDED_PORT in exports.sh) — gluetun's dynamic NAT-PMP
+    # (VPN_PORT_FORWARDING) is OFF; the reserved port is opened on the tunnel via
+    # FIREWALL_VPN_INPUT_PORTS and qBittorrent's listen port is pinned to that same
+    # fixed value in its own config (so peers can connect — seeding/ratio/H&R).
     # Pinned to the latest main build by DIGEST (2026-06-24). There is no stable
     # semver newer than v3.41.1, and v3.41.1 shipped a STALE embedded server list
-    # (Feb 2026 — outdated Proton IPs caused a silent dead tunnel). This build has
-    # a fresher ProtonVPN server list AND the refactored DNS engine that finally
+    # (Feb 2026 — outdated server IPs caused a silent dead tunnel). This build has
+    # a fresher server list AND the refactored DNS engine that finally
     # honours a custom plaintext upstream (the #3231 fix — see DNS settings below),
     # which is why DNS_KEEP_NAMESERVER is gone (it became obsolete in this build).
     # Digest-pinned for reproducibility (like byparr); bump deliberately — get the
@@ -246,9 +269,9 @@ services:
       - /dev/net/tun:/dev/net/tun
     # Seed this netns's resolv.conf with your DNS resolver so gluetun records it as
     # the private resolver at container start; its built-in DNS then forwards to it
-    # explicitly via DNS_UPSTREAM_* below. qBit and the sidecar share this netns, so
-    # they resolve via it too. Set LAN_DNS in exports.sh (see README); defaults to
-    # 1.1.1.1 (Cloudflare) when unset.
+    # explicitly via DNS_UPSTREAM_* below. Every in-netns service shares this resolv,
+    # so they all resolve via it too. Set LAN_DNS in exports.sh (see README);
+    # defaults to 1.1.1.1 (Cloudflare) when unset.
     dns:
       - "${LAN_DNS:-1.1.1.1}"
     depends_on:
@@ -256,41 +279,48 @@ services:
         condition: service_completed_successfully
     environment:
       TZ: America/Sao_Paulo
-      VPN_SERVICE_PROVIDER: protonvpn
+      VPN_SERVICE_PROVIDER: "${VPN_PROVIDER}"
       VPN_TYPE: wireguard
       # Secrets live in app-data (config/gluetun/), NEVER in this public repo.
-      # Generate a ProtonVPN WireGuard config with NAT-PMP enabled, then write its
-      # PrivateKey to config/gluetun/wireguard_private_key and its Address (e.g.
-      # 10.2.0.2/32) to config/gluetun/wireguard_addresses (see README).
+      # Generate your VPN provider's WireGuard config, then write its
+      # PrivateKey to config/gluetun/wireguard_private_key, its Address (e.g.
+      # 10.x.x.x/32) to config/gluetun/wireguard_addresses, and its PresharedKey to
+      # config/gluetun/wireguard_preshared_key (if your provider uses a PSK; see README).
       WIREGUARD_PRIVATE_KEY_SECRETFILE: /gluetun/wireguard_private_key
       WIREGUARD_ADDRESSES_SECRETFILE: /gluetun/wireguard_addresses
+      WIREGUARD_PRESHARED_KEY_SECRETFILE: /gluetun/wireguard_preshared_key
       # FIXED WireGuard MTU. Without this, gluetun runs Path-MTU discovery (PMTUD),
-      # which is buggy (gluetun#3108 / #3142): on some ProtonVPN servers PMTUD fails
-      # (ICMP blocked on the path), gluetun reverts tun0 to a fallback MTU and large
-      # packets get black-holed -> torrent throughput collapses to near zero, while
-      # the healthcheck (small packets) still passes, so gluetun never auto-recovers
-      # (you only notice via slow downloads). Pinning a safe MTU bypasses discovery.
-      # 1400 is the value gluetun's PMTUD measured working THROUGH the tunnel on a
-      # good server; a DF ping to the WireGuard endpoint measured this link's path
-      # MTU at a clean 1500 (no PPPoE limit), so 1400 sits ~40 bytes below the 1440
-      # ceiling a 1500 path allows -> proven AND with margin. Raise toward 1420 for a
-      # bit more speed (untested through the tunnel); if a DIFFERENT server ever
-      # collapses even at this MTU it is a dead server -> switch servers, don't lower.
-      WIREGUARD_MTU: "1400"
-      VPN_PORT_FORWARDING: "on"
-      VPN_PORT_FORWARDING_STATUS_FILE: /gluetun/forwarded_port
-      PORT_FORWARD_ONLY: "on"
-      # ProtonVPN P2P + port-forwarding servers in Brazil. If Brazil has no
-      # port-forwarding server, gluetun fails fast in its logs — change this to
-      # another country (e.g. Netherlands) or remove it to auto-pick any PF server.
+      # which is buggy (gluetun#3108 / #3142): when PMTUD fails (ICMP blocked on the
+      # path) gluetun reverts tun0 to a fallback MTU and large packets get black-holed
+      # -> torrent throughput collapses while the healthcheck (small packets) still
+      # passes, so gluetun never auto-recovers. Pinning a safe MTU bypasses discovery.
+      # 1320 is a safe WireGuard MTU (matches the value most providers' .conf use).
+      # If a server collapses even at this MTU it is a dead server -> switch servers
+      # (change SERVER_COUNTRIES), don't lower further.
+      WIREGUARD_MTU: "1320"
+      # VPN WireGuard entry port (set via VPN_ENDPOINT_PORT in exports.sh). Prefer a
+      # non-standard port over the well-known 51820 - ISPs that DPI/throttle VPNs
+      # target the standard WireGuard port first.
+      WIREGUARD_ENDPOINT_PORT: "${VPN_ENDPOINT_PORT:-}"
+      # Port forwarding here is STATIC (a port you reserve in the VPN provider's
+      # panel), NOT NAT-PMP -> gluetun's dynamic PF is OFF. The reserved port is
+      # opened on the tunnel by FIREWALL_VPN_INPUT_PORTS below; qBittorrent's listen
+      # port is fixed to that same value in its own config (app-data), so it stays
+      # connectable. With a static port there is nothing dynamic to sync, so the old
+      # qbit-port-sync sidecar has been removed.
+      VPN_PORT_FORWARDING: "off"
+      PORT_FORWARD_ONLY: "off"
+      # VPN servers in Brazil (lowest latency from here). When PF is account-
+      # level (works on any server) so any country is fine — change this (e.g.
+      # Netherlands) or remove it to auto-pick, if Brazil turns out slow.
       SERVER_COUNTRIES: Brazil
       # DNS: gluetun's built-in resolver forwards EVERY query to your resolver
       # (LAN_DNS) over plaintext UDP — the supported way to use a custom resolver on
       # this build (replaces the obsolete DNS_KEEP_NAMESERVER; the proper fix for
       # gluetun#3231, where older builds ignored a custom plaintext upstream and
       # forced Cloudflare). The query exits via the LAN (the resolver's subnet must
-      # be in FIREWALL_OUTBOUND_SUBNETS); torrent traffic still tunnels. qBit +
-      # sidecar share this netns -> same DNS. Set LAN_DNS in exports.sh; defaults to
+      # be in FIREWALL_OUTBOUND_SUBNETS); torrent traffic still tunnels. Every
+      # in-netns service shares this DNS. Set LAN_DNS in exports.sh; defaults to
       # 1.1.1.1 when unset.
       DNS_UPSTREAM_RESOLVER_TYPE: plain
       DNS_UPSTREAM_PLAIN_ADDRESSES: "${LAN_DNS:-1.1.1.1}:53"
@@ -314,27 +344,46 @@ services:
       # DETECTS a dead tunnel (silent WireGuard failure) so gluetun reconnects to a
       # working server. ⚠️ Do NOT point this at the LAN (tried in v1.6.6,
       # 2026-06-21): a LAN target always answers, so gluetun reports "healthy" while
-      # the tunnel is actually DEAD → qBit gets zero traffic and never auto-recovers
-      # (this exact silent failure happened). The occasional transient restart is
-      # the PRICE of auto-recovery and the sidecar reannounces on reconnect, so it
-      # self-heals. Only the startup check (HEALTH_TARGET_ADDRESSES above) is on the
-      # internal valid-cert host, purely to avoid the startup-window flap.
+      # the tunnel is actually DEAD → the stack gets zero traffic and never auto-
+      # recovers (this exact silent failure happened). The occasional transient
+      # restart is the PRICE of auto-recovery; it self-heals. ⚠️ NOTE: every service
+      # in this netns loses network during that restart window (not just qBit) — the
+      # cost of routing the whole acquisition stack through one tunnel.
       HEALTH_ICMP_TARGET_IPS: 1.1.1.1,8.8.8.8
-      # Expose qBittorrent's WebUI (8082) through gluetun to the LAN.
-      FIREWALL_INPUT_PORTS: "8082"
-      # Let qBit (in this netns) reach the other stack containers (cross-seed
-      # webhook), let Sonarr/Radarr reach qBit, AND let gluetun reach your LAN DNS.
-      # Umbrel Docker net = 10.21.0.0/16 (the default below). If you use a LAN DNS
-      # resolver, add your LAN subnet too via VPN_OUTBOUND_SUBNETS in exports.sh,
-      # e.g. "10.21.0.0/16,192.168.1.0/24". Do NOT add broad ranges like 10.0.0.0/8:
-      # they overlap ProtonVPN's tunnel gateway (10.2.0.x) and break NAT-PMP port
-      # forwarding (the forwarded-port request gets routed off-tunnel).
+      # Publish the WebUIs of every service that shares this netns (qBittorrent + the
+      # whole *arr stack) to the LAN/reverse-proxy. Each WebUI stays reachable at
+      # <host>:<port> EXACTLY as before the service moved behind the VPN, so the
+      # reverse proxy keeps pointing at host:port — no change needed there. byparr
+      # (8191) and cross-seed (2468) are intentionally NOT here: they are reached only
+      # over loopback (localhost) by the other in-netns services.
+      FIREWALL_INPUT_PORTS: "8082,5055,8989,7878,6767,9696,34400"
+      # Open the VPN's STATIC reserved forwarded port inbound on the TUNNEL so peers
+      # can connect to qBittorrent (seeding/ratio/H&R). THIS is what makes the
+      # reserved port work in the static model (providers with dynamic NAT-PMP
+      # auto-manage this; a static reserved port must be opened explicitly). Set the
+      # port you reserved in the VPN provider's panel via VPN_FORWARDED_PORT in
+      # exports.sh; empty = no inbound port opened.
+      FIREWALL_VPN_INPUT_PORTS: "${VPN_FORWARDED_PORT:-}"
+      # Outbound subnets gluetun may reach OFF-tunnel: the Umbrel Docker net
+      # (10.21.0.0/16) so the bridge containers (Jellyfin/unpackerr) reach the
+      # in-netns WebUIs and Seerr reaches Jellyfin via the host, plus your LAN DNS.
+      # If you use a LAN DNS resolver, add your LAN subnet too via VPN_OUTBOUND_SUBNETS
+      # in exports.sh, e.g. "10.21.0.0/16,192.168.1.0/24". Do NOT add broad ranges
+      # like 10.0.0.0/8: they can overlap the VPN's tunnel gateway (the 10.x WireGuard
+      # address) and route tunnel traffic off-tunnel.
       FIREWALL_OUTBOUND_SUBNETS: "${VPN_OUTBOUND_SUBNETS:-10.21.0.0/16}"
     ports:
-      # qBittorrent WebUI (qBit runs in this network namespace). The BitTorrent
-      # port is NOT published — incoming peers arrive via ProtonVPN's forwarded
-      # port through the tunnel.
-      - "8082:8082"
+      # WebUIs of every service sharing this netns (qBittorrent + the *arr stack),
+      # published so the LAN/reverse-proxy reach them at <host>:<port>. The
+      # BitTorrent port is NOT published — incoming peers arrive via the VPN's
+      # forwarded port through the tunnel.
+      - "8082:8082"    # qBittorrent
+      - "5055:5055"    # Jellyseerr
+      - "8989:8989"    # Sonarr
+      - "7878:7878"    # Radarr
+      - "6767:6767"    # Bazarr
+      - "9696:9696"    # Prowlarr
+      - "34400:34400"  # Threadfin
     volumes:
       - ${APP_DATA_DIR}/config/gluetun:/gluetun
     # No no-new-privileges here: gluetun configures tun routing/iptables and
@@ -344,9 +393,10 @@ services:
     image: lscr.io/linuxserver/qbittorrent:5.2.2_v2.0.13-ls462
     restart: on-failure
     stop_grace_period: 30s
-    # Routed through ProtonVPN: shares gluetun's network namespace, so it has NO
-    # own ports/hostname. WebUI 8082 is published by gluetun (above); reach it at
-    # gluetun:8082 from Sonarr/Radarr/cross-seed, and at <host>:8082 from the LAN.
+    # Routed through the VPN: shares gluetun's network namespace, so it has NO own
+    # ports/hostname. WebUI 8082 is published by gluetun (above); reach it at
+    # <host>:8082 from the LAN/reverse-proxy, and at localhost:8082 from the other
+    # in-netns services (Sonarr/Radarr/cross-seed).
     network_mode: "service:gluetun"
     depends_on:
       gluetun:
@@ -362,8 +412,9 @@ services:
       # differs from the WebUI port, so keep 8082 (host port 8080 is taken on the
       # target host) — verified 2026-06-05.
       WEBUI_PORT: "8082"
-      # No fixed TORRENTING_PORT — the listen port is set dynamically to
-      # ProtonVPN's forwarded port by the qbit-port-sync sidecar.
+      # The BitTorrent listen port is FIXED to the VPN's static reserved port
+      # (VPN_FORWARDED_PORT) in qBittorrent.conf (app-data) — see README. With a
+      # static forwarded port there is nothing dynamic to sync (no sidecar).
     volumes:
       - ${APP_DATA_DIR}/config/qbittorrent:/config
       - ${APP_DATA_DIR}/data:/data
@@ -375,26 +426,30 @@ services:
     # headless browser. Verified to work under no-new-privileges (2026-06-07).
     # No semver tags upstream (only latest/main) — pinned by digest for
     # reproducibility; bump the digest deliberately to update it.
+    # Routed through the VPN (shares gluetun's netns) — Prowlarr reaches it over
+    # loopback at http://localhost:8191.
     image: ghcr.io/thephaseless/byparr@sha256:01a46a2865d9a6db5eb8ead04ec0dd33b8fbe233e8565ae70b50d4cc0af4cfb0
     restart: on-failure
     shm_size: "2gb"
+    network_mode: "service:gluetun"
     depends_on:
-      init:
-        condition: service_completed_successfully
+      gluetun:
+        condition: service_healthy
     security_opt:
       - no-new-privileges:true
     environment:
       TZ: America/Sao_Paulo
-    # No ports: only reached by Prowlarr over the internal network
-    # (http://byparr:8191).
 
   cross-seed:
     image: ghcr.io/cross-seed/cross-seed:6.13.7
     restart: on-failure
     user: "1000:1000"
+    # Routed through the VPN (shares gluetun's netns) — reaches qBittorrent and
+    # Prowlarr over loopback (http://localhost:8082 / http://localhost:9696).
+    network_mode: "service:gluetun"
     depends_on:
-      init:
-        condition: service_completed_successfully
+      gluetun:
+        condition: service_healthy
     security_opt:
       - no-new-privileges:true
     environment:
@@ -410,7 +465,7 @@ services:
     volumes:
       - ${APP_DATA_DIR}/config/cross-seed:/config
       - ${APP_DATA_DIR}/data:/data
-    # No ports: internal webhook only (qbittorrent -> http://cross-seed:2468).
+    # No ports: internal webhook only (qBittorrent -> http://localhost:2468).
 
   unpackerr:
     # Auto-extracts RAR/scene releases that Sonarr/Radarr grab. Scene BluRay
@@ -420,6 +475,9 @@ services:
     # Sonarr/Radarr queues, extracts archives in place, and the *arr then
     # imports the .mkv via hardlink while the original archive keeps seeding.
     # Official golift image; pinned — bump deliberately via store updates.
+    # Stays on the bridge (NOT behind the VPN — it only touches local files +
+    # the *arr APIs). It reaches Sonarr/Radarr (now in the VPN netns) at
+    # http://gluetun:8989 / http://gluetun:7878 (set post-install in unpackerr.conf).
     image: golift/unpackerr:0.15.2
     restart: on-failure
     depends_on:
@@ -441,45 +499,3 @@ services:
     # No ports: internal only. First start writes a template
     # /config/unpackerr.conf which the user fills with the Sonarr/Radarr URLs
     # and API keys post-install (see README), then restarts the app.
-
-  qbit-port-sync:
-    # Keeps qBittorrent's listen port equal to ProtonVPN's dynamic forwarded port
-    # (so qBit stays connectable -> seeding/ratio/H&R). Shares gluetun's netns,
-    # reads the port gluetun writes to /gluetun/forwarded_port, and pushes it to
-    # qBit at 127.0.0.1:8082. REQUIRES qBittorrent -> Options -> WebUI -> "Bypass
-    # authentication for clients on localhost" = ON (set post-install; see README).
-    image: curlimages/curl:8.11.1
-    restart: on-failure
-    network_mode: "service:gluetun"
-    depends_on:
-      gluetun:
-        condition: service_healthy
-      qbittorrent:
-        condition: service_started
-    # root so it can read gluetun's port file regardless of ownership.
-    user: "0:0"
-    volumes:
-      - ${APP_DATA_DIR}/config/gluetun:/gluetun:ro
-    entrypoint:
-      - /bin/sh
-      - -c
-      - |
-        LAST=""
-        while true; do
-          P=$$(cat /gluetun/forwarded_port 2>/dev/null)
-          if [ -n "$$P" ] && [ "$$P" != "$$LAST" ]; then
-            if curl -fsS -H "Referer: http://127.0.0.1:8082" \
-              --data-urlencode "json={\"listen_port\":$$P,\"random_port\":false,\"upnp\":false}" \
-              http://127.0.0.1:8082/api/v2/app/setPreferences >/dev/null 2>&1; then
-              LAST="$$P"; echo "[qbit-port-sync] listen_port=$$P"
-              # Port changed => gluetun reconnected with a NEW exit IP. Re-announce
-              # all torrents so trackers learn the new IP:port immediately, else
-              # downloads/seeds stall until qBit's next scheduled announce.
-              curl -fsS -H "Referer: http://127.0.0.1:8082" \
-                --data-urlencode "hashes=all" \
-                http://127.0.0.1:8082/api/v2/torrents/reannounce >/dev/null 2>&1 \
-                && echo "[qbit-port-sync] reannounced all torrents"
-            fi
-          fi
-          sleep 60
-        done

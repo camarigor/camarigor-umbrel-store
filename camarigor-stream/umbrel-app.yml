@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.6.15"
+version: "1.7.0"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -38,10 +38,12 @@ description: >-
   - Unpackerr (internal): auto-extracts RAR/scene releases (multi-part
     .rNN archives) so Sonarr and Radarr can import them.
 
-  - gluetun (internal): ProtonVPN gateway. qBittorrent routes ALL its
-    traffic through this WireGuard tunnel with a kill-switch and
-    ProtonVPN port forwarding (P2P servers), so torrents stay connectable
-    without leaking the real IP. Requires a ProtonVPN paid plan.
+  - gluetun (internal): VPN gateway for the WHOLE acquisition stack.
+    qBittorrent, Sonarr, Radarr, Prowlarr, Jellyseerr, Bazarr, Byparr,
+    cross-seed and Threadfin all route their traffic through this WireGuard
+    tunnel with a kill-switch — if the tunnel drops they lose internet instead
+    of leaking the real IP — plus a static forwarded port so torrents stay
+    connectable. Requires a paid VPN with WireGuard and port forwarding.
 
   - Threadfin (34400): optional M3U proxy/filter for IPTV. A raw Xtream/M3U
     provider playlist can carry hundreds of thousands of entries — far too
@@ -63,10 +65,10 @@ description: >-
      create the movies/tv categories.
 
   2. Prowlarr: add indexers + Byparr (Indexer Proxy type "FlareSolverr",
-     Host http://byparr:8191) and connect Sonarr/Radarr.
+     Host http://localhost:8191) and connect Sonarr/Radarr.
 
   3. Sonarr/Radarr: root folders /data/media/{tv,movies} + download
-     client host gluetun, port 8082 (qBittorrent runs behind the VPN).
+     client host localhost, port 8082 (all services share the VPN netns).
 
   4. Bazarr: Portuguese (Brazil) language profile + providers.
 
@@ -75,13 +77,13 @@ description: >-
   6. Jellyseerr: connect to Jellyfin + Radarr/Sonarr.
 
   7. cross-seed: edit config/cross-seed/config.js (point qBittorrent to
-     gluetun:8082 + Prowlarr Torznab) and restart the app.
+     localhost:8082 + Prowlarr Torznab at http://localhost:9696) and restart the app.
 
-  8. VPN (gluetun): generate a ProtonVPN WireGuard config with NAT-PMP
-     enabled, write its PrivateKey to config/gluetun/wireguard_private_key
-     and its Address to config/gluetun/wireguard_addresses, enable
-     qBittorrent "Bypass authentication for clients on localhost", then
-     restart the app (see README).
+  8. VPN (gluetun): set your provider + ports in exports.sh (VPN_PROVIDER,
+     VPN_ENDPOINT_PORT, VPN_FORWARDED_PORT), generate the provider's WireGuard
+     config and write its PrivateKey/Address/PresharedKey to the matching
+     config/gluetun/wireguard_* files, set qBittorrent's incoming port to
+     VPN_FORWARDED_PORT (UPnP off), then restart the app (see README).
 developer: camarigor
 website: https://github.com/camarigor/camarigor-umbrel-store
 support: https://github.com/camarigor/camarigor-umbrel-store/issues
@@ -90,10 +92,34 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.7.0: Route the ENTIRE acquisition stack through the VPN, not just qBittorrent.
+  Sonarr, Radarr, Prowlarr, Jellyseerr, Bazarr, Byparr, cross-seed and Threadfin now
+  share gluetun's network namespace, so every one of them egresses through the
+  WireGuard tunnel and loses network (kill-switch) if the tunnel drops. Their WebUIs
+  are published by gluetun and stay reachable at <host>:<port> exactly as before, so
+  a reverse proxy pointing at host:port needs no change. Calls between these services
+  are now over localhost (download client localhost:8082, Byparr localhost:8191,
+  Prowlarr localhost:9696); unpackerr and Jellyfin (on the bridge) reach the in-netns
+  services at gluetun:<port>; Seerr reaches Jellyfin at the host LAN IP. The
+  qbit-port-sync sidecar was removed -- with a static forwarded port the listen port
+  is fixed in qBittorrent's config, so there is nothing to sync. After updating,
+  verify the *arr WebUIs and the qBittorrent download-client connection. See README.
+
+
+  v1.6.16: The VPN provider is now fully generic in the public template -- no
+  provider name or reserved port appears in the compose. The provider, the
+  WireGuard entry port and the static forwarded port are driven by VPN_PROVIDER,
+  VPN_ENDPOINT_PORT and VPN_FORWARDED_PORT in exports.sh (with the WireGuard
+  PrivateKey/Address/PresharedKey in config/gluetun/wireguard_* files). Port
+  forwarding switched from dynamic NAT-PMP to a STATIC reserved port opened via
+  FIREWALL_VPN_INPUT_PORTS, and WIREGUARD_MTU is 1320. Set your values in
+  exports.sh + the secret files, then update.
+
+
   v1.6.15: Routine image updates. Sonarr 4.0.17.2952-ls313 to 4.0.18.2971-ls315
   (upstream patch). gluetun re-pinned by digest to a newer latest main build
   (2026-06-24, was the 2026-06-14 pin) -- still ahead of the v3.41.1 release,
-  whose embedded ProtonVPN server list is a stale Feb-2026 snapshot, so it keeps
+  whose embedded VPN server list is a stale Feb-2026 snapshot, so it keeps
   the fresher server list and the custom-DNS (#3231) fix. Everything else
   (Jellyfin, Seerr, Radarr, Bazarr, Prowlarr, qBittorrent, Byparr, cross-seed,
   Unpackerr, Threadfin) was already current. gluetun pulls a new image, so the
@@ -111,7 +137,7 @@ releaseNotes: >-
 
 
   v1.6.13: Pin the WireGuard MTU to 1400 (WIREGUARD_MTU). gluetun's automatic
-  Path-MTU discovery (PMTUD) is buggy (gluetun#3108 / #3142): on some ProtonVPN
+  Path-MTU discovery (PMTUD) is buggy (gluetun#3108 / #3142): on some VPN
   servers it fails (ICMP blocked on the path), reverts tun0 to a fallback MTU and
   black-holes large packets, collapsing torrent throughput to near zero -- while the
   healthcheck (small packets) keeps passing, so it never auto-recovers and you just
@@ -179,7 +205,7 @@ releaseNotes: >-
 
   v1.6.8: Update gluetun to its latest build (pinned by digest, 2026-06-14)
   instead of the v3.41.1 release. There is no stable semver newer than v3.41.1,
-  whose EMBEDDED ProtonVPN server list is a stale Feb-2026 snapshot — outdated
+  whose EMBEDDED VPN server list is a stale Feb-2026 snapshot — outdated
   server IPs led gluetun to connect to a dead endpoint (silent WireGuard failure
   → zero traffic, recovered only by failover). The newer build carries a fresher
   server list (so PORT_FORWARD_ONLY picks from current P2P/port-forwarding
@@ -190,7 +216,7 @@ releaseNotes: >-
 
   v1.6.7: Revert v1.6.6 — put gluetun's ongoing healthcheck back THROUGH the
   tunnel (HEALTH_ICMP_TARGET_IPS=1.1.1.1,8.8.8.8). v1.6.6 pinged the LAN, which
-  always answers, so when a ProtonVPN server had a silent WireGuard failure
+  always answers, so when a VPN server had a silent WireGuard failure
   gluetun reported "healthy" while the tunnel was actually dead — qBittorrent got
   zero traffic and never auto-recovered (happened 2026-06-21). Pinging through the
   tunnel is what detects a dead tunnel and makes gluetun reconnect to a working
@@ -243,7 +269,7 @@ releaseNotes: >-
   resolves through the LAN DNS (OpenWRT/AdGuard); torrent traffic still tunnels.
 
 
-  v1.6.2: Stabilize DNS + auto-recover after VPN reconnects. ProtonVPN's BR
+  v1.6.2: Stabilize DNS + auto-recover after VPN reconnects. VPN's BR
   servers were resetting gluetun's DNS-over-TLS to Cloudflare (:853), causing
   intermittent tracker-resolution failures, VPN healthcheck bounces, and
   stalled downloads. gluetun now uses PLAINTEXT DNS to the local LAN resolver
@@ -251,27 +277,27 @@ releaseNotes: >-
   change to your own resolver), and the LAN subnet (<lan-subnet>) was added to
   FIREWALL_OUTBOUND_SUBNETS so gluetun can reach it (torrent traffic still goes
   through the VPN). Also: the qbit-port-sync sidecar now re-announces all
-  torrents whenever ProtonVPN's forwarded port changes (i.e. after a VPN
+  torrents whenever VPN's forwarded port changes (i.e. after a VPN
   reconnect/new exit IP), so downloads/seeds recover automatically instead of
   stalling until qBit's next scheduled announce. No image changes.
 
 
-  v1.6.1: Fix ProtonVPN port forwarding. v1.6.0 set gluetun
+  v1.6.1: Fix VPN port forwarding. v1.6.0 set gluetun
   FIREWALL_OUTBOUND_SUBNETS to broad private ranges (incl. 10.0.0.0/8), which
-  overlapped ProtonVPN's tunnel gateway (10.2.0.x) and made the NAT-PMP
+  overlapped VPN's tunnel gateway (10.2.0.x) and made the NAT-PMP
   forwarded-port request route off-tunnel and time out — so torrents were not
   connectable. Scoped it to Umbrel's Docker network (10.21.0.0/16) only, so
   NAT-PMP reaches the VPN gateway and port forwarding works. No image changes.
 
 
-  v1.6.0: qBittorrent now routes ALL traffic through ProtonVPN via a new
+  v1.6.0: qBittorrent now routes ALL traffic through VPN via a new
   internal gluetun gateway (24/7, WireGuard) with a kill-switch — if the tunnel
-  drops, qBit loses internet instead of leaking the real IP. Uses ProtonVPN port
+  drops, qBit loses internet instead of leaking the real IP. Uses VPN port
   forwarding on P2P servers (PORT_FORWARD_ONLY) so torrents stay connectable;
   the dynamic forwarded port is auto-synced into qBittorrent by a small
   qbit-port-sync sidecar. qBittorrent's WebUI is still on host port 8082 (now
   published by gluetun); Sonarr/Radarr/cross-seed reach it at gluetun:8082.
-  Requires a ProtonVPN PAID plan: post-install, drop your WireGuard PrivateKey
+  Requires a VPN PAID plan: post-install, drop your WireGuard PrivateKey
   and Address into config/gluetun/ (kept out of this repo) and enable
   qBittorrent "Bypass authentication for clients on localhost" (see README).
   Also bumps qBittorrent to 5.2.2 (libtorrent v2.0.13).

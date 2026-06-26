@@ -6,10 +6,13 @@ automatically (through a VPN), gets extracted if needed, subtitles are fetched,
 and it shows up in Jellyfin — using **hardlinks**, so a file is never duplicated
 on disk and keeps seeding while it sits in your library.
 
-> **qBittorrent runs behind ProtonVPN (gluetun).** Its WebUI is still on host
-> port `8082` (published by gluetun); **inside the stack reach it at
-> `gluetun:8082`, not `qbittorrent:8082`** — qBittorrent shares gluetun's network
-> namespace and has no hostname of its own.
+> **The whole acquisition stack runs behind the VPN (gluetun).** qBittorrent,
+> Sonarr, Radarr, Prowlarr, Jellyseerr, Bazarr, Byparr, cross-seed and Threadfin
+> all share gluetun's network namespace, so they egress through the WireGuard
+> tunnel and have **no hostname of their own** — internally they reach each other
+> over **`localhost`**, and their WebUIs are published by gluetun on the host (so
+> the LAN and a reverse proxy reach them at `<host>:<port>` unchanged). Only
+> **Jellyfin** and **Unpackerr** stay on Umbrel's bridge.
 
 ## Requirements
 
@@ -17,8 +20,8 @@ on disk and keeps seeding while it sits in your library.
 - **Intel iGPU** (e.g. an N100/N150 box) for Jellyfin hardware transcoding —
   exposes `/dev/dri`, uses the host `render` group (GID `991` in the compose;
   adjust if your host differs).
-- **A ProtonVPN paid plan** (Plus/Unlimited — they include P2P + port
-  forwarding). qBittorrent will not start without working VPN credentials.
+- **A paid VPN** with **WireGuard** and **port forwarding** support.
+  qBittorrent will not start without working VPN credentials.
 - **Kernel WireGuard** on the host (modern kernels have it) — gluetun uses the
   kernel module automatically and falls back to a slower userspace impl. if it's
   missing.
@@ -31,16 +34,16 @@ on disk and keeps seeding while it sits in your library.
 |---|---|---|---|
 | **Jellyfin** | 8096 | `jellyfin/jellyfin:10.11.11` | Media server / player (Intel QSV transcoding) |
 | **Jellyseerr** | 5055 | `seerr/seerr:v3.3.0` | Request UI (logs in with Jellyfin accounts) |
-| **Sonarr** | 8989 | `linuxserver/sonarr:4.0.17.2952-ls313` | TV automation |
-| **Radarr** | 7878 | `linuxserver/radarr:6.2.1.10461-ls305` | Movie automation |
-| **Bazarr** | 6767 | `linuxserver/bazarr:v1.5.6-ls350` | Subtitles (pt-BR by default) |
-| **Prowlarr** | 9696 | `linuxserver/prowlarr:2.4.0.5397-ls149` | Indexer manager (syncs to Sonarr/Radarr) |
-| **qBittorrent** | 8082 | `linuxserver/qbittorrent:5.2.2_v2.0.13-ls462` | Download client — behind the VPN, at `gluetun:8082` |
-| **gluetun** | internal | `qmcgaw/gluetun` (digest-pinned) | ProtonVPN gateway (WireGuard + kill-switch + port forwarding) |
-| **Byparr** | internal `8191` | `thephaseless/byparr` (digest-pinned) | Cloudflare solver, FlareSolverr-compatible API |
-| **cross-seed** | internal `2468` | `cross-seed/cross-seed:6.13.7` | Re-seeds finished downloads on other trackers (hardlink) |
-| **Unpackerr** | internal | `golift/unpackerr:0.15.2` | Auto-extracts RAR/scene releases for the *arrs |
-| **qbit-port-sync** | internal | `curlimages/curl:8.11.1` | Keeps qBittorrent's listen port = ProtonVPN's forwarded port |
+| **Sonarr** | 8989 | `linuxserver/sonarr:4.0.18.2971-ls315` | TV automation — via VPN |
+| **Radarr** | 7878 | `linuxserver/radarr:6.2.1.10461-ls305` | Movie automation — via VPN |
+| **Bazarr** | 6767 | `linuxserver/bazarr:v1.5.6-ls350` | Subtitles (pt-BR by default) — via VPN |
+| **Prowlarr** | 9696 | `linuxserver/prowlarr:2.4.0.5397-ls149` | Indexer manager (syncs to Sonarr/Radarr) — via VPN |
+| **qBittorrent** | 8082 | `linuxserver/qbittorrent:5.2.2_v2.0.13-ls462` | Download client — via VPN |
+| **Threadfin** | 34400 | `fyb3roptik/threadfin` (digest-pinned) | Optional IPTV M3U/EPG proxy in front of Jellyfin Live TV — via VPN |
+| **gluetun** | internal | `qmcgaw/gluetun` (digest-pinned) | VPN gateway for the whole acquisition stack (WireGuard + kill-switch + static port forwarding) |
+| **Byparr** | internal `8191` | `thephaseless/byparr` (digest-pinned) | Cloudflare solver, FlareSolverr-compatible API — via VPN |
+| **cross-seed** | internal `2468` | `cross-seed/cross-seed:6.13.7` | Re-seeds finished downloads on other trackers (hardlink) — via VPN |
+| **Unpackerr** | internal | `golift/unpackerr:0.15.2` | Auto-extracts RAR/scene releases for the *arrs — on the bridge |
 | **init** | — | `busybox:stable` | One-shot: creates the config/data directory tree and fixes ownership before anything starts |
 
 Images are **pinned** (by version, or by digest for projects without semver tags
@@ -53,7 +56,7 @@ host UI.
 ```
 Jellyseerr (you request something)
   └─> Sonarr / Radarr  (find a release via Prowlarr's indexers)
-        └─> qBittorrent (download — all traffic through ProtonVPN)
+        └─> qBittorrent (download — all traffic through the VPN)
               └─> Unpackerr (extract, if it's a .rNN scene pack)
                     └─> Sonarr/Radarr import by HARDLINK into the library
                           └─> Bazarr fetches subtitles
@@ -85,21 +88,26 @@ Per-service config lives under `~/umbrel/app-data/camarigor-stream/config/<servi
 
 ## Networking & security
 
-- **Internal DNS names:** services reach each other by service name on Umbrel's
-  Docker network — `http://sonarr:8989`, `http://radarr:7878`,
-  `http://prowlarr:9696`, `http://byparr:8191`, `http://cross-seed:2468`, etc.
-  qBittorrent is the exception: it shares gluetun's network namespace, so it has
-  **no name of its own** — reach it at **`gluetun:8082`**.
-- **Kill-switch:** gluetun blocks all non-VPN egress. If the tunnel drops,
-  qBittorrent (and the port-sync sidecar) lose internet — they never leak the
-  real IP. The BitTorrent listen port is **not** published on the host; peers
-  arrive via ProtonVPN's forwarded port through the tunnel.
+- **Two network zones.** The whole acquisition stack — qBittorrent, Sonarr,
+  Radarr, Prowlarr, Jellyseerr, Bazarr, Byparr, cross-seed and Threadfin — shares
+  **gluetun's** network namespace, so those services have **no hostname of their
+  own** and reach each other over **`localhost`** (e.g. download client
+  `localhost:8082`, Byparr `localhost:8191`, Prowlarr `localhost:9696`,
+  cross-seed webhook `localhost:2468`). Their WebUIs are **published by gluetun**
+  on the host, so the LAN and a reverse proxy reach them at `<host>:<port>`
+  unchanged. Only **Jellyfin** and **Unpackerr** stay on Umbrel's bridge: they
+  reach the in-netns services at **`gluetun:<port>`** (e.g. Unpackerr →
+  `gluetun:8989`), and Jellyseerr reaches Jellyfin back at the **host LAN IP**.
+- **Kill-switch:** gluetun blocks all non-VPN egress. If the tunnel drops, **every
+  service in its namespace** loses internet — they never leak the real IP. The
+  BitTorrent listen port is **not** published on the host; peers arrive via the
+  VPN's static forwarded port through the tunnel.
 - **Hardening:** every service runs with `no-new-privileges`; the LinuxServer
   apps run as UID/GID `1000`; Jellyfin, Jellyseerr, cross-seed and Unpackerr run
   as non-root `1000:1000` at the Docker level. gluetun is the only service with
   an added capability (`NET_ADMIN`, required to configure the tunnel and
   iptables), so it intentionally omits `no-new-privileges`.
-- **Secrets stay out of the repo:** the ProtonVPN WireGuard key/address live only
+- **Secrets stay out of the repo:** the VPN WireGuard key/address live only
   in `config/gluetun/` on the host (see step 9). Any host-specific values (LAN
   DNS, internal hostnames) live in `exports.sh` (see *Customization*).
 - **Jellyfin** uses the **official** `jellyfin/jellyfin` image (not LinuxServer):
@@ -108,18 +116,25 @@ Per-service config lives under `~/umbrel/app-data/camarigor-stream/config/<servi
   `group_add: 991` (host `render`) and `/dev/dri` for Quick Sync, and its
   `JELLYFIN_*_DIR` env vars keep the existing on-disk config layout.
 
-## VPN — gluetun + ProtonVPN
+## VPN — gluetun
 
-**All** qBittorrent traffic egresses through a ProtonVPN WireGuard tunnel.
+**All** acquisition-stack traffic egresses through a VPN WireGuard tunnel —
+qBittorrent plus Sonarr, Radarr, Prowlarr, Jellyseerr, Bazarr, Byparr, cross-seed
+and Threadfin, which all share gluetun's network namespace.
 
-- **Protocol:** WireGuard (`VPN_TYPE=wireguard`, provider `protonvpn`), using the
-  host's **kernel** WireGuard module when available.
-- **Servers:** `PORT_FORWARD_ONLY=on` connects only to ProtonVPN's P2P /
-  port-forwarding servers; `SERVER_COUNTRIES=Brazil` by default.
-- **Port forwarding:** gluetun requests a port via NAT-PMP and writes it to
-  `/gluetun/forwarded_port`; the **qbit-port-sync** sidecar pushes it into
-  qBittorrent's `listen_port` and re-announces all torrents whenever it changes,
-  so seeding/ratio/H&R survive reconnects.
+- **Protocol:** WireGuard (`VPN_TYPE=wireguard`, provider `${VPN_PROVIDER}` set in
+  exports.sh), using the host's **kernel** WireGuard module when available.
+- **Servers:** `SERVER_COUNTRIES=Brazil` by default; the WireGuard entry port is
+  `${VPN_ENDPOINT_PORT}` (a non-standard port helps dodge ISP VPN throttling).
+- **Port forwarding (STATIC):** reserve a port in your provider's panel and set it
+  as `VPN_FORWARDED_PORT` in exports.sh; gluetun opens it on the tunnel via
+  `FIREWALL_VPN_INPUT_PORTS`, and qBittorrent's `listen_port` is fixed to that same
+  value in its own config (so it stays connectable — seeding/ratio/H&R). The port
+  is static, so there is nothing dynamic to sync (no sidecar). gluetun's NAT-PMP
+  is OFF.
+- **WebUIs:** each in-netns service publishes its WebUI through gluetun
+  (`FIREWALL_INPUT_PORTS=8082,5055,8989,7878,6767,9696,34400`), so the LAN and a
+  reverse proxy reach them at `<host>:<port>` exactly as before.
 - **Healthcheck:** a startup TLS check (`HEALTH_TARGET_ADDRESSES`, default
   `cloudflare.com:443`) plus an ongoing ICMP check **through the tunnel**
   (`HEALTH_ICMP_TARGET_IPS=1.1.1.1,8.8.8.8`) — the ICMP check is what detects a
@@ -147,7 +162,10 @@ export VPN_OUTBOUND_SUBNETS="10.21.0.0/16,192.168.1.0/24"  # Umbrel net + your L
 |---|---|---|
 | `LAN_DNS` | `1.1.1.1` | Routes qBittorrent's DNS through your own resolver (exits via the LAN; torrent traffic still tunnels). |
 | `VPN_HEALTHCHECK_HOST` | `cloudflare.com` | Points gluetun's **startup** check at an internal host reached over the LAN (no tunnel dependency → avoids startup flapping when DNS is on a LAN resolver). Auto-exempted from gluetun's DNS-rebinding protection. Must present a **publicly-valid cert** and **not** be a raw IP (cert verification needs a SAN match). |
-| `VPN_OUTBOUND_SUBNETS` | `10.21.0.0/16` | Subnets gluetun may reach off-tunnel. Add your LAN if `LAN_DNS` is on it. **Never** use broad ranges like `10.0.0.0/8` — they overlap ProtonVPN's tunnel gateway (`10.2.0.x`) and break NAT-PMP. |
+| `VPN_OUTBOUND_SUBNETS` | `10.21.0.0/16` | Subnets gluetun may reach off-tunnel. Add your LAN if `LAN_DNS` is on it. **Never** use broad ranges like `10.0.0.0/8` — they can overlap the VPN's tunnel gateway and route tunnel traffic off-tunnel. |
+| `VPN_PROVIDER` | — | gluetun VPN provider id (matches your WireGuard config). Kept out of the public compose. |
+| `VPN_ENDPOINT_PORT` | gluetun default | WireGuard entry/endpoint port; a non-standard one can dodge ISP VPN throttling. |
+| `VPN_FORWARDED_PORT` | (none) | Static port reserved in your provider's panel; opened on the tunnel for incoming peers (seeding). |
 
 `SERVER_COUNTRIES` is set in the compose (default `Brazil`); change it there to
 pick another country. After editing `exports.sh`, restart the app.
@@ -163,21 +181,22 @@ pick another country. After editing `exports.sh`, restart the app.
 4. Create categories (right-click Categories in the sidebar):
    - `movies` → Save Path `/data/torrents/movies`
    - `tv` → Save Path `/data/torrents/tv`
-5. Options → WebUI → enable **"Bypass authentication for clients on localhost"**
-   (lets the qbit-port-sync sidecar set the forwarded port without credentials).
+5. Options → Connection → set **"Port used for incoming connections"** to your
+   reserved `VPN_FORWARDED_PORT` and turn **UPnP/NAT-PMP OFF** (the VPN forwards
+   exactly that static port through the tunnel; it never changes).
 
 ### 2. Prowlarr (`:9696`)
 
 1. Create user/password on first access (Authentication: Forms).
 2. Settings → Indexers → Add Indexer Proxy → **FlareSolverr** (Byparr is
    API-compatible, so the proxy type stays "FlareSolverr"): Host
-   `http://byparr:8191`, Tag `byparr`.
+   `http://localhost:8191`, Tag `byparr`.
 3. Indexers → Add: register your public indexers (apply the `byparr` tag on
    Cloudflare-protected ones) and private trackers (tracker API key).
 4. Settings → Apps → Add:
-   - **Sonarr**: Prowlarr Server `http://prowlarr:9696`, Sonarr Server
-     `http://sonarr:8989`, API Key (Sonarr → Settings → General → API Key).
-   - **Radarr**: same with `http://radarr:7878`.
+   - **Sonarr**: Prowlarr Server `http://localhost:9696`, Sonarr Server
+     `http://localhost:8989`, API Key (Sonarr → Settings → General → API Key).
+   - **Radarr**: same with `http://localhost:7878`.
 5. After saving, indexers show up automatically in Sonarr/Radarr.
 
 ### 3. Sonarr (`:8989`) and Radarr (`:7878`)
@@ -187,7 +206,7 @@ pick another country. After editing `exports.sh`, restart the app.
    - Sonarr: `/data/media/tv`
    - Radarr: `/data/media/movies`
 3. Settings → Download Clients → Add → qBittorrent:
-   - Host `gluetun` (qBit shares gluetun's network), Port `8082`,
+   - Host `localhost` (Sonarr/Radarr share qBit's netns), Port `8082`,
      username/password from step 1, Category `tv` (Sonarr) / `movies` (Radarr).
 4. Confirm Settings → Media Management → Importing: **Use Hardlinks instead of
    Copy** = ON (default).
@@ -198,8 +217,8 @@ pick another country. After editing `exports.sh`, restart the app.
    Language Profile `pt-BR` (Subtitle = Portuguese (Brazil)) and set it as
    Default for Series and Movies.
 2. Settings → Providers: add OpenSubtitles.com (free account) and/or others.
-3. Settings → Sonarr: Host `sonarr`, Port `8989`, Sonarr API Key.
-4. Settings → Radarr: Host `radarr`, Port `7878`, Radarr API Key.
+3. Settings → Sonarr: Host `localhost`, Port `8989`, Sonarr API Key.
+4. Settings → Radarr: Host `localhost`, Port `7878`, Radarr API Key.
 
 ### 5. Jellyfin (`:8096`)
 
@@ -217,10 +236,11 @@ pick another country. After editing `exports.sh`, restart the app.
 
 ### 6. Jellyseerr (`:5055`)
 
-1. Sign in with Jellyfin: URL `http://jellyfin:8096`, Jellyfin admin.
-2. Settings → Radarr: Add Server — Hostname `radarr`, Port `7878`, API Key,
+1. Sign in with Jellyfin: URL `http://<umbrel-host-ip>:8096` (Jellyfin stays on
+   the bridge — use the host's LAN IP, not a container name), Jellyfin admin.
+2. Settings → Radarr: Add Server — Hostname `localhost`, Port `7878`, API Key,
    Quality Profile and Root Folder `/data/media/movies`, set Default.
-3. Settings → Sonarr: same — `sonarr`/`8989`, Root `/data/media/tv`.
+3. Settings → Sonarr: same — `localhost`/`8989`, Root `/data/media/tv`.
 
 ### 7. cross-seed (no UI)
 
@@ -232,18 +252,18 @@ pick another country. After editing `exports.sh`, restart the app.
    `port: 2468`) are already correct:
 
    ```js
-   torrentClients: ["qbittorrent:http://USER:PASSWORD@gluetun:8082"],
+   torrentClients: ["qbittorrent:http://USER:PASSWORD@localhost:8082"],
 
    torznab: [
      // Prowlarr → Indexers → copy each indexer's Torznab feed URL
-     // "http://prowlarr:9696/1/api?apikey=YOUR_PROWLARR_API_KEY",
+     // "http://localhost:9696/1/api?apikey=YOUR_PROWLARR_API_KEY",
    ],
 
    linkDirs: ["/data/torrents/cross-seed"],
    ```
 
 2. qBittorrent → Options → Downloads → Run external program on torrent finished:
-   `curl -s -XPOST http://cross-seed:2468/api/webhook --data-urlencode "infoHash=%I"`
+   `curl -s -XPOST http://localhost:2468/api/webhook --data-urlencode "infoHash=%I"`
 3. Restart the app from the Umbrel UI.
 4. Logs: `sudo docker logs -f $(sudo docker ps --format '{{.Names}}' | grep cross-seed)`.
 
@@ -255,16 +275,17 @@ so Sonarr/Radarr can import them instead of stalling on "Found archive file".
 1. The first start writes
    `~/umbrel/app-data/camarigor-stream/config/unpackerr/unpackerr.conf`. Under
    the `[[sonarr]]` and `[[radarr]]` blocks, uncomment and set `url`, `api_key`
-   and `paths`:
+   and `paths`. Unpackerr runs on the **bridge** (not in the VPN netns), so it
+   reaches the *arrs at **`gluetun:<port>`**, not `localhost`:
 
    ```toml
    [[sonarr]]
-     url = "http://sonarr:8989"
+     url = "http://gluetun:8989"
      api_key = "YOUR_SONARR_API_KEY"
      paths = ['/data/torrents']
 
    [[radarr]]
-     url = "http://radarr:7878"
+     url = "http://gluetun:7878"
      api_key = "YOUR_RADARR_API_KEY"
      paths = ['/data/torrents']
    ```
@@ -273,21 +294,25 @@ so Sonarr/Radarr can import them instead of stalling on "Found archive file".
 2. Restart the app from the Umbrel UI.
 3. Logs: `sudo docker logs -f $(sudo docker ps --format '{{.Names}}' | grep unpackerr)`.
 
-### 9. VPN — gluetun + ProtonVPN (no UI)
+### 9. VPN — gluetun (no UI)
 
 gluetun restart-loops until the key files below exist (expected).
 
-1. ProtonVPN dashboard → **WireGuard configuration**:
-   - Platform: **GNU/Linux**; turn ON **NAT-PMP (Port Forwarding)**; leave
-     Moderate NAT off; VPN Accelerator on.
-   - From the generated config note the `PrivateKey` and the `Address`
-     (e.g. `10.2.0.2/32`).
-2. Drop the secrets into `~/umbrel/app-data/camarigor-stream/config/gluetun/`
-   (these stay out of the store repo):
+1. Your VPN provider's panel: generate a **WireGuard** config and note the
+   `PrivateKey`, `Address` (e.g. `10.x.x.x/32`) and `PresharedKey` (if the provider
+   uses one). Reserve a forwarded port if your provider uses static port forwarding.
+2. Set the provider + ports in `~/umbrel/app-data/camarigor-stream/exports.sh`, and
+   drop the secrets into `config/gluetun/` (all stay out of the store repo):
 
    ```sh
+   # exports.sh
+   export VPN_PROVIDER="your-gluetun-provider-id"
+   export VPN_ENDPOINT_PORT=""          # optional: WireGuard entry port
+   export VPN_FORWARDED_PORT=""         # the port you reserved (static PF)
+   # secrets (config/gluetun/)
    printf '%s' 'YOUR_WIREGUARD_PRIVATE_KEY' > config/gluetun/wireguard_private_key
-   printf '%s' '10.2.0.2/32'                > config/gluetun/wireguard_addresses
+   printf '%s' '10.x.x.x/32'                > config/gluetun/wireguard_addresses
+   printf '%s' 'YOUR_PRESHARED_KEY'         > config/gluetun/wireguard_preshared_key
    ```
 
 3. (Optional) For a custom LAN DNS resolver / internal healthcheck host, create
@@ -299,27 +324,28 @@ gluetun restart-loops until the key files below exist (expected).
 ```sh
 G=$(sudo docker ps --format '{{.Names}}' | grep gluetun)
 
-# gluetun connected + healthy + got a forwarded port:
-sudo docker logs "$G" 2>&1 | grep -iE 'healthy|port forwarding|port forwarded'
+# gluetun connected + healthy:
+sudo docker logs "$G" 2>&1 | grep -iE 'healthy|wireguard|connected'
 
-# egress IP is ProtonVPN's — must NOT be your home IP (no leak):
+# egress IP is the VPN's — must NOT be your home IP (no leak):
 sudo docker exec "$G" wget -qO- https://ipinfo.io/ip
-
-# forwarded port (should equal qBittorrent → Options → Connection → listen port):
-sudo docker exec "$G" cat /gluetun/forwarded_port
 
 # kernel vs userspace WireGuard (should say "kernelspace"):
 sudo docker logs "$G" 2>&1 | grep -i implementation
 
-# qBittorrent connection status (should be "connected", not "firewalled"):
-#   qBittorrent → bottom status bar, or the port-sync log:
-sudo docker logs $(sudo docker ps --format '{{.Names}}' | grep qbit-port-sync) 2>&1 | tail
+# every in-netns WebUI answers on the host (the LAN / reverse-proxy path):
+for p in 8082 5055 8989 7878 6767 9696 34400; do \
+  printf '%s ' "$p"; curl -fsS -o /dev/null -w '%{http_code}\n' "http://localhost:$p" || echo DOWN; done
+
+# qBittorrent: listen port must equal your reserved VPN_FORWARDED_PORT, and the
+# status must be "connected" (not "firewalled") — that confirms the static
+# forwarded port works. Check qBittorrent → Options → Connection + the status bar.
 ```
 
 ## Troubleshooting
 
 - **App stuck on "updating" in Umbrel.** Almost always gluetun never became
-  healthy — qBittorrent and qbit-port-sync `depends_on: gluetun (healthy)`, so
+  healthy — every acquisition service `depends_on: gluetun (healthy)`, so
   they stay in `Created` and the app never converges. Check
   `sudo docker logs <gluetun>`; fix the VPN/DNS cause below, then the app
   finishes converging.
@@ -328,11 +354,11 @@ sudo docker logs $(sudo docker ps --format '{{.Names}}' | grep qbit-port-sync) 2
   that resolves to a private IP) gluetun's DNS-rebinding protection refuses it.
   Use the public default, or set `VPN_HEALTHCHECK_HOST` (it gets auto-exempted) —
   and it must have a **valid public cert**, **not** be a raw IP.
-- **qBittorrent shows "firewalled" / no downloads.** The forwarded port isn't
-  synced: confirm the **localhost-bypass** is on (step 1.5) and qbit-port-sync is
-  `Up`; check its log shows `listen_port=…` matching `/gluetun/forwarded_port`.
-  If egress is zero too, the tunnel may be dead — gluetun should reconnect; a
-  manual app restart re-syncs the port and re-announces.
+- **qBittorrent shows "firewalled" / no downloads.** Confirm qBittorrent's listen
+  port equals your reserved `VPN_FORWARDED_PORT` (step 1.5) and that the same value
+  is set as `VPN_FORWARDED_PORT` in exports.sh (gluetun opens it on the tunnel via
+  `FIREWALL_VPN_INPUT_PORTS`). If egress is zero too, the tunnel may be dead —
+  gluetun should reconnect; a manual app restart re-announces.
 - **Can't resolve trackers (DNS).** If you set `LAN_DNS`, make sure its subnet is
   in `VPN_OUTBOUND_SUBNETS`, otherwise the kill-switch blocks it.
 - **Imports copy instead of hardlink (double disk usage).** Downloads and library
