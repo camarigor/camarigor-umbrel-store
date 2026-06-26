@@ -310,10 +310,17 @@ services:
       # qbit-port-sync sidecar has been removed.
       VPN_PORT_FORWARDING: "off"
       PORT_FORWARD_ONLY: "off"
-      # VPN servers in Brazil (lowest latency from here). When PF is account-
-      # level (works on any server) so any country is fine — change this (e.g.
-      # Netherlands) or remove it to auto-pick, if Brazil turns out slow.
-      SERVER_COUNTRIES: Brazil
+      # VPN server selection — ALL configurable via exports.sh (empty = no filter,
+      # gluetun auto-picks). PF is account-level (works on ANY server), so pick a
+      # LIGHTLY-LOADED one (check your provider's server-load page): a saturated
+      # server throttles download throughput even on a healthy tunnel, and latency
+      # is irrelevant for bulk torrent download + a buffered TV stream. Pin ONE
+      # server with VPN_SERVER_NAMES (the provider's server name); VPN_SERVER_CITIES
+      # / VPN_SERVER_COUNTRIES filter broader. They AND together — when you pin a
+      # name, leave the others empty.
+      SERVER_COUNTRIES: "${VPN_SERVER_COUNTRIES:-}"
+      SERVER_CITIES: "${VPN_SERVER_CITIES:-}"
+      SERVER_NAMES: "${VPN_SERVER_NAMES:-}"
       # DNS: gluetun's built-in resolver forwards EVERY query to your resolver
       # (LAN_DNS) over plaintext UDP — the supported way to use a custom resolver on
       # this build (replaces the obsolete DNS_KEEP_NAMESERVER; the proper fix for

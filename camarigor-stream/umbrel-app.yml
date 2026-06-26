@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.7.0"
+version: "1.7.1"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -92,6 +92,15 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.7.1: VPN server selection is now configurable via exports.sh —
+  VPN_SERVER_COUNTRIES, VPN_SERVER_CITIES and VPN_SERVER_NAMES drive gluetun's
+  SERVER_* filters (empty = auto-pick; they AND together). Lets you pin a specific,
+  lightly-loaded server without editing the compose — a saturated server throttles
+  download throughput even on a healthy tunnel, and latency is irrelevant for bulk
+  torrent download and a buffered TV stream. Port forwarding is account-level so it
+  works on any server. Set the vars in exports.sh and restart. No image change.
+
+
   v1.7.0: Route the ENTIRE acquisition stack through the VPN, not just qBittorrent.
   Sonarr, Radarr, Prowlarr, Jellyseerr, Bazarr, Byparr, cross-seed and Threadfin now
   share gluetun's network namespace, so every one of them egresses through the

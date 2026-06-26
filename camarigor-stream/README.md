@@ -124,7 +124,11 @@ and Threadfin, which all share gluetun's network namespace.
 
 - **Protocol:** WireGuard (`VPN_TYPE=wireguard`, provider `${VPN_PROVIDER}` set in
   exports.sh), using the host's **kernel** WireGuard module when available.
-- **Servers:** `SERVER_COUNTRIES=Brazil` by default; the WireGuard entry port is
+- **Servers:** pick via `VPN_SERVER_COUNTRIES` / `VPN_SERVER_CITIES` /
+  `VPN_SERVER_NAMES` in exports.sh (empty = gluetun auto-picks; they AND together —
+  pin one server by name and leave the others empty). PF is account-level so any
+  server works; choose a **lightly-loaded** one (a saturated server throttles
+  downloads even on a healthy tunnel). The WireGuard entry port is
   `${VPN_ENDPOINT_PORT}` (a non-standard port helps dodge ISP VPN throttling).
 - **Port forwarding (STATIC):** reserve a port in your provider's panel and set it
   as `VPN_FORWARDED_PORT` in exports.sh; gluetun opens it on the tunnel via
@@ -166,9 +170,11 @@ export VPN_OUTBOUND_SUBNETS="10.21.0.0/16,192.168.1.0/24"  # Umbrel net + your L
 | `VPN_PROVIDER` | — | gluetun VPN provider id (matches your WireGuard config). Kept out of the public compose. |
 | `VPN_ENDPOINT_PORT` | gluetun default | WireGuard entry/endpoint port; a non-standard one can dodge ISP VPN throttling. |
 | `VPN_FORWARDED_PORT` | (none) | Static port reserved in your provider's panel; opened on the tunnel for incoming peers (seeding). |
+| `VPN_SERVER_COUNTRIES` | (none) | Filter gluetun to one or more countries (comma-separated, e.g. `United States`). Empty = no country filter. |
+| `VPN_SERVER_CITIES` | (none) | Filter to one or more cities (comma-separated, e.g. `Chicago`). |
+| `VPN_SERVER_NAMES` | (none) | Pin specific server(s) by your provider's server name — **comma-separated list**; gluetun rotates/fails-over among them. Filters AND together, so when pinning names leave countries/cities empty. Pick lightly-loaded servers (a saturated one throttles downloads). |
 
-`SERVER_COUNTRIES` is set in the compose (default `Brazil`); change it there to
-pick another country. After editing `exports.sh`, restart the app.
+After editing `exports.sh`, restart the app (Umbrel → app → Restart, or re-update).
 
 ## Post-install setup (order matters)
 
