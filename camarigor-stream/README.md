@@ -7,12 +7,12 @@ and it shows up in Jellyfin — using **hardlinks**, so a file is never duplicat
 on disk and keeps seeding while it sits in your library.
 
 > **The whole acquisition stack runs behind the VPN (gluetun).** qBittorrent,
-> Sonarr, Radarr, Prowlarr, Jellyseerr, Bazarr, Byparr, cross-seed and Threadfin
+> Sonarr, Radarr, Prowlarr, Jellyseerr, Bazarr, Byparr and cross-seed
 > all share gluetun's network namespace, so they egress through the WireGuard
 > tunnel and have **no hostname of their own** — internally they reach each other
 > over **`localhost`**, and their WebUIs are published by gluetun on the host (so
-> the LAN and a reverse proxy reach them at `<host>:<port>` unchanged). Only
-> **Jellyfin** and **Unpackerr** stay on Umbrel's bridge.
+> the LAN and a reverse proxy reach them at `<host>:<port>` unchanged).
+> **Jellyfin**, **Threadfin** and **Unpackerr** stay on Umbrel's bridge.
 
 ## Requirements
 
@@ -39,7 +39,7 @@ on disk and keeps seeding while it sits in your library.
 | **Bazarr** | 6767 | `linuxserver/bazarr:v1.5.6-ls350` | Subtitles (pt-BR by default) — via VPN |
 | **Prowlarr** | 9696 | `linuxserver/prowlarr:2.4.0.5397-ls149` | Indexer manager (syncs to Sonarr/Radarr) — via VPN |
 | **qBittorrent** | 8082 | `linuxserver/qbittorrent:5.2.2_v2.0.13-ls462` | Download client — via VPN |
-| **Threadfin** | 34400 | `fyb3roptik/threadfin` (digest-pinned) | Optional IPTV M3U/EPG proxy in front of Jellyfin Live TV — via VPN |
+| **Threadfin** | 34400 | `fyb3roptik/threadfin` (digest-pinned) | Optional IPTV M3U/EPG proxy in front of Jellyfin Live TV — on the bridge (the IPTV provider blocks the VPN IP + non-player User-Agents) |
 | **gluetun** | internal | `qmcgaw/gluetun` (digest-pinned) | VPN gateway for the whole acquisition stack (WireGuard + kill-switch + static port forwarding) |
 | **Byparr** | internal `8191` | `thephaseless/byparr` (digest-pinned) | Cloudflare solver, FlareSolverr-compatible API — via VPN |
 | **cross-seed** | internal `2468` | `cross-seed/cross-seed:6.13.7` | Re-seeds finished downloads on other trackers (hardlink) — via VPN |
@@ -88,16 +88,17 @@ Per-service config lives under `~/umbrel/app-data/camarigor-stream/config/<servi
 
 ## Networking & security
 
-- **Two network zones.** The whole acquisition stack — qBittorrent, Sonarr,
-  Radarr, Prowlarr, Jellyseerr, Bazarr, Byparr, cross-seed and Threadfin — shares
+- **Two network zones.** The acquisition stack — qBittorrent, Sonarr,
+  Radarr, Prowlarr, Jellyseerr, Bazarr, Byparr and cross-seed — shares
   **gluetun's** network namespace, so those services have **no hostname of their
   own** and reach each other over **`localhost`** (e.g. download client
   `localhost:8082`, Byparr `localhost:8191`, Prowlarr `localhost:9696`,
   cross-seed webhook `localhost:2468`). Their WebUIs are **published by gluetun**
   on the host, so the LAN and a reverse proxy reach them at `<host>:<port>`
-  unchanged. Only **Jellyfin** and **Unpackerr** stay on Umbrel's bridge: they
-  reach the in-netns services at **`gluetun:<port>`** (e.g. Unpackerr →
-  `gluetun:8989`), and Jellyseerr reaches Jellyfin back at the **host LAN IP**.
+  unchanged. **Jellyfin**, **Threadfin** and **Unpackerr** stay on Umbrel's bridge:
+  they reach the in-netns services at **`gluetun:<port>`** (e.g. Unpackerr →
+  `gluetun:8989`), Jellyfin pulls Live TV from **`threadfin:34400`**, and Jellyseerr
+  reaches Jellyfin back at the **host LAN IP**.
 - **Kill-switch:** gluetun blocks all non-VPN egress. If the tunnel drops, **every
   service in its namespace** loses internet — they never leak the real IP. The
   BitTorrent listen port is **not** published on the host; peers arrive via the
@@ -119,8 +120,9 @@ Per-service config lives under `~/umbrel/app-data/camarigor-stream/config/<servi
 ## VPN — gluetun
 
 **All** acquisition-stack traffic egresses through a VPN WireGuard tunnel —
-qBittorrent plus Sonarr, Radarr, Prowlarr, Jellyseerr, Bazarr, Byparr, cross-seed
-and Threadfin, which all share gluetun's network namespace.
+qBittorrent plus Sonarr, Radarr, Prowlarr, Jellyseerr, Bazarr, Byparr and
+cross-seed, which all share gluetun's network namespace. (Threadfin is the
+exception — it stays on the bridge; see its row in the services table.)
 
 - **Protocol:** WireGuard (`VPN_TYPE=wireguard`, provider `${VPN_PROVIDER}` set in
   exports.sh), using the host's **kernel** WireGuard module when available.
@@ -137,7 +139,7 @@ and Threadfin, which all share gluetun's network namespace.
   is static, so there is nothing dynamic to sync (no sidecar). gluetun's NAT-PMP
   is OFF.
 - **WebUIs:** each in-netns service publishes its WebUI through gluetun
-  (`FIREWALL_INPUT_PORTS=8082,5055,8989,7878,6767,9696,34400`), so the LAN and a
+  (`FIREWALL_INPUT_PORTS=8082,5055,8989,7878,6767,9696`), so the LAN and a
   reverse proxy reach them at `<host>:<port>` exactly as before.
 - **Healthcheck:** a startup TLS check (`HEALTH_TARGET_ADDRESSES`, default
   `cloudflare.com:443`) plus an ongoing ICMP check **through the tunnel**
@@ -340,7 +342,7 @@ sudo docker exec "$G" wget -qO- https://ipinfo.io/ip
 sudo docker logs "$G" 2>&1 | grep -i implementation
 
 # every in-netns WebUI answers on the host (the LAN / reverse-proxy path):
-for p in 8082 5055 8989 7878 6767 9696 34400; do \
+for p in 8082 5055 8989 7878 6767 9696; do \
   printf '%s ' "$p"; curl -fsS -o /dev/null -w '%{http_code}\n' "http://localhost:$p" || echo DOWN; done
 
 # qBittorrent: listen port must equal your reserved VPN_FORWARDED_PORT, and the

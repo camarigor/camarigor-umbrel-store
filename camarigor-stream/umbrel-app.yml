@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.7.3"
+version: "1.7.4"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -92,6 +92,15 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.7.4: Threadfin moved OFF the VPN, back onto the bridge. The IPTV provider
+  blocks BOTH the VPN/datacenter egress IP AND non-player User-Agents (it resets
+  the connection), so Threadfin must reach the provider over the home/residential
+  IP with a real player User-Agent (set per-playlist in Threadfin's UI). Jellyfin's
+  Live TV tuner URL becomes http://threadfin:34400 (was http://gluetun:34400); port
+  34400 is now published by Threadfin itself and removed from gluetun. IPTV is live
+  TV, not torrent traffic, so it does not need the VPN. No image change.
+
+
   v1.7.3: Revert v1.7.2 — Byparr goes back into the VPN netns, so the whole
   acquisition stack is on the VPN again. Moving Byparr to the bridge let it reach
   1337x/EZTV from the home IP, but Cloudflare's cf_clearance cookie is IP-bound, so
