@@ -6,8 +6,8 @@ automatically (through a VPN), gets extracted if needed, subtitles are fetched,
 and it shows up in Jellyfin — using **hardlinks**, so a file is never duplicated
 on disk and keeps seeding while it sits in your library.
 
-> **The whole acquisition stack runs behind the VPN (gluetun).** qBittorrent,
-> Sonarr, Radarr, Prowlarr, Jellyseerr, Bazarr, Byparr and cross-seed
+> **The acquisition stack (plus Watcharr) runs behind the VPN (gluetun).** qBittorrent,
+> Sonarr, Radarr, Prowlarr, Jellyseerr, Bazarr, Byparr, cross-seed and Watcharr
 > all share gluetun's network namespace, so they egress through the WireGuard
 > tunnel and have **no hostname of their own** — internally they reach each other
 > over **`localhost`**, and their WebUIs are published by gluetun on the host (so
@@ -34,6 +34,7 @@ on disk and keeps seeding while it sits in your library.
 |---|---|---|---|
 | **Jellyfin** | 8096 | `jellyfin/jellyfin:10.11.11` | Media server / player (Intel QSV transcoding) |
 | **Jellyseerr** | 5055 | `seerr/seerr:v3.3.0` | Request UI (logs in with Jellyfin accounts) |
+| **Watcharr** | 3080 | `ghcr.io/sbondco/watcharr:v3.0.1` | Watch-history / watchlist tracker (ratings + watched, TMDB metadata, imports from Jellyfin via host IP) — via VPN |
 | **Sonarr** | 8989 | `linuxserver/sonarr:4.0.18.2971-ls315` | TV automation — via VPN |
 | **Radarr** | 7878 | `linuxserver/radarr:6.2.1.10461-ls305` | Movie automation — via VPN |
 | **Bazarr** | 6767 | `linuxserver/bazarr:v1.5.6-ls350` | Subtitles (pt-BR by default) — via VPN |

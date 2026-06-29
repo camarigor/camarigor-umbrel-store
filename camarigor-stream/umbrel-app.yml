@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.7.4"
+version: "1.7.5"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -92,6 +92,14 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.7.5: Add Watcharr — a self-hosted watch-history / watchlist tracker (ratings &
+  watched-tracking, TMDB metadata, optional import from Jellyfin). It runs in
+  gluetun's VPN netns (its TMDB lookups egress through the tunnel); gluetun publishes
+  its WebUI on port 3080 (reach it at <host>:3080). It imports from Jellyfin via the
+  host LAN IP (same pattern as Seerr, since it has no container hostname inside the
+  netns). Runs as non-root 1000:1000; image pinned to ghcr.io/sbondco/watcharr:v3.0.1.
+
+
   v1.7.4: Threadfin moved OFF the VPN, back onto the bridge. The IPTV provider
   blocks BOTH the VPN/datacenter egress IP AND non-player User-Agents (it resets
   the connection), so Threadfin must reach the provider over the home/residential

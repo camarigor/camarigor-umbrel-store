@@ -23,6 +23,7 @@ services:
           /app-data/config/unpackerr \
           /app-data/config/gluetun \
           /app-data/config/threadfin \
+          /app-data/config/watcharr \
           /app-data/data/torrents/movies \
           /app-data/data/torrents/tv \
           /app-data/data/torrents/cross-seed \
@@ -41,6 +42,7 @@ services:
           /app-data/config/unpackerr \
           /app-data/config/gluetun \
           /app-data/config/threadfin \
+          /app-data/config/watcharr \
           /app-data/data \
           /app-data/data/torrents \
           /app-data/data/torrents/movies \
@@ -365,7 +367,7 @@ services:
       # reverse proxy keeps pointing at host:port — no change needed there. byparr
       # (8191) and cross-seed (2468) are intentionally NOT here: they are reached only
       # over loopback (localhost) by the other in-netns services.
-      FIREWALL_INPUT_PORTS: "8082,5055,8989,7878,6767,9696"
+      FIREWALL_INPUT_PORTS: "8082,5055,8989,7878,6767,9696,3080"
       # Open the VPN's STATIC reserved forwarded port inbound on the TUNNEL so peers
       # can connect to qBittorrent (seeding/ratio/H&R). THIS is what makes the
       # reserved port work in the static model (providers with dynamic NAT-PMP
@@ -392,6 +394,7 @@ services:
       - "7878:7878"    # Radarr
       - "6767:6767"    # Bazarr
       - "9696:9696"    # Prowlarr
+      - "3080:3080"    # Watcharr
     volumes:
       - ${APP_DATA_DIR}/config/gluetun:/gluetun
     # No no-new-privileges here: gluetun configures tun routing/iptables and
@@ -512,3 +515,33 @@ services:
     # No ports: internal only. First start writes a template
     # /config/unpackerr.conf which the user fills with the Sonarr/Radarr URLs
     # and API keys post-install (see README), then restarts the app.
+
+  watcharr:
+    # Watcharr: self-hosted watch-history / watchlist tracker (rate & track what
+    # you've watched across movies & TV). Go backend + Svelte frontend with an
+    # embedded SQLite DB — no separate database container. Pulls metadata from TMDB
+    # and can import history from Jellyfin/Plex (all configured in its web UI on
+    # first run; the FIRST account created becomes the admin).
+    # Routed through the VPN: shares gluetun's network namespace, so it has NO own
+    # ports/hostname and egresses through the tunnel (TMDB lookups go over the VPN).
+    # WebUI 3080 is published by gluetun; reach it at <host>:3080 from the LAN/reverse
+    # proxy. To import from Jellyfin (on the bridge, unreachable by container name from
+    # in here), point Watcharr at the host LAN IP — same pattern as Seerr -> Jellyfin.
+    # Runs as non-root 1000:1000: the image has no USER (defaults to root, which litters
+    # the bind mount with root-owned files); verified it runs fine as 1000, writing its
+    # SQLite DB to /data. Listens on 3080 (main app) + 3000 (internal node SSR); only
+    # 3080 is the access port (published by gluetun).
+    # Pinned to v3.0.1 (latest release, 2026-03-09); bump deliberately via store updates.
+    image: ghcr.io/sbondco/watcharr:v3.0.1
+    restart: on-failure
+    user: "1000:1000"
+    network_mode: "service:gluetun"
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      TZ: America/Sao_Paulo
+    volumes:
+      - ${APP_DATA_DIR}/config/watcharr:/data
