@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.7.5"
+version: "1.7.6"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -50,6 +50,10 @@ description: >-
     many for Jellyfin's Live TV — so Threadfin lets you select just the
     channels you want and serves a small M3U + XMLTV guide to Jellyfin.
 
+  - Yamtrack (8000): self-hosted media tracker (movies, TV, anime, manga,
+    games, books) with TMDB/MAL/IGDB metadata and CSV/Trakt/MAL imports;
+    it runs on the VPN with a small Redis. Replaces Watcharr.
+
 
   Data layout (single volume — hardlinks between downloads and library,
   no duplicated disk space):
@@ -92,6 +96,18 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.7.6: Replace Watcharr with Yamtrack — a self-hosted media tracker (movies, TV,
+  anime, manga, games and books) with a cleaner, more organised UI. Yamtrack is a
+  Django app, so it adds a REQUIRED Redis (Celery broker + TMDB metadata cache); both
+  run in gluetun's VPN netns (Yamtrack reaches Redis over localhost:6379) and the WebUI
+  is published by gluetun on port 8000 (was Watcharr's 3080). The database is SQLite
+  under config/yamtrack/db. Set YAMTRACK_SECRET (mandatory Django secret key —
+  `openssl rand -hex 32`) and, behind a reverse proxy, YAMTRACK_URL (your public origin,
+  trusted for CSRF) in exports.sh; metadata language is pt-BR and a default TMDB key
+  ships with the image. Image pinned to ghcr.io/fuzzygrim/yamtrack:0.25.3. Create the
+  first account in the web UI, then set REGISTRATION=False to lock sign-ups.
+
+
   v1.7.5: Add Watcharr — a self-hosted watch-history / watchlist tracker (ratings &
   watched-tracking, TMDB metadata, optional import from Jellyfin). It runs in
   gluetun's VPN netns (its TMDB lookups egress through the tunnel); gluetun publishes

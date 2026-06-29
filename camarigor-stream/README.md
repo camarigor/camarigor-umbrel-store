@@ -6,9 +6,9 @@ automatically (through a VPN), gets extracted if needed, subtitles are fetched,
 and it shows up in Jellyfin — using **hardlinks**, so a file is never duplicated
 on disk and keeps seeding while it sits in your library.
 
-> **The acquisition stack (plus Watcharr) runs behind the VPN (gluetun).** qBittorrent,
-> Sonarr, Radarr, Prowlarr, Jellyseerr, Bazarr, Byparr, cross-seed and Watcharr
-> all share gluetun's network namespace, so they egress through the WireGuard
+> **The acquisition stack (plus Yamtrack) runs behind the VPN (gluetun).** qBittorrent,
+> Sonarr, Radarr, Prowlarr, Jellyseerr, Bazarr, Byparr, cross-seed and Yamtrack
+> (with its Redis) all share gluetun's network namespace, so they egress through the WireGuard
 > tunnel and have **no hostname of their own** — internally they reach each other
 > over **`localhost`**, and their WebUIs are published by gluetun on the host (so
 > the LAN and a reverse proxy reach them at `<host>:<port>` unchanged).
@@ -34,7 +34,8 @@ on disk and keeps seeding while it sits in your library.
 |---|---|---|---|
 | **Jellyfin** | 8096 | `jellyfin/jellyfin:10.11.11` | Media server / player (Intel QSV transcoding) |
 | **Jellyseerr** | 5055 | `seerr/seerr:v3.3.0` | Request UI (logs in with Jellyfin accounts) |
-| **Watcharr** | 3080 | `ghcr.io/sbondco/watcharr:v3.0.1` | Watch-history / watchlist tracker (ratings + watched, TMDB metadata, imports from Jellyfin via host IP) — via VPN |
+| **Yamtrack** | 8000 | `ghcr.io/fuzzygrim/yamtrack:0.25.3` | Media tracker (movies, TV, anime, manga, games, books; ratings + progress, TMDB/MAL/IGDB metadata, CSV/Trakt/MAL imports) — via VPN |
+| **yamtrack-redis** | internal `6379` | `redis:8-alpine` | Redis broker + metadata cache required by Yamtrack — via VPN |
 | **Sonarr** | 8989 | `linuxserver/sonarr:4.0.18.2971-ls315` | TV automation — via VPN |
 | **Radarr** | 7878 | `linuxserver/radarr:6.2.1.10461-ls305` | Movie automation — via VPN |
 | **Bazarr** | 6767 | `linuxserver/bazarr:v1.5.6-ls350` | Subtitles (pt-BR by default) — via VPN |
@@ -140,7 +141,7 @@ exception — it stays on the bridge; see its row in the services table.)
   is static, so there is nothing dynamic to sync (no sidecar). gluetun's NAT-PMP
   is OFF.
 - **WebUIs:** each in-netns service publishes its WebUI through gluetun
-  (`FIREWALL_INPUT_PORTS=8082,5055,8989,7878,6767,9696`), so the LAN and a
+  (`FIREWALL_INPUT_PORTS=8082,5055,8989,7878,6767,9696,8000`), so the LAN and a
   reverse proxy reach them at `<host>:<port>` exactly as before.
 - **Healthcheck:** a startup TLS check (`HEALTH_TARGET_ADDRESSES`, default
   `cloudflare.com:443`) plus an ongoing ICMP check **through the tunnel**
@@ -163,6 +164,8 @@ defaults, stay **out of the public store repo**, and **survive app updates**:
 export LAN_DNS="192.168.1.53"                              # your LAN resolver (AdGuard/Pi-hole/router)
 export VPN_HEALTHCHECK_HOST="health.example.com"           # internal host with a publicly-valid cert
 export VPN_OUTBOUND_SUBNETS="10.21.0.0/16,192.168.1.0/24"  # Umbrel net + your LAN
+export YAMTRACK_SECRET="$(openssl rand -hex 32)"           # Yamtrack Django secret (MANDATORY)
+export YAMTRACK_URL="https://yamtrack.mydomain.com"        # Yamtrack public origin (CSRF trust behind the proxy)
 ```
 
 | Variable | Default | What it does |
@@ -176,6 +179,8 @@ export VPN_OUTBOUND_SUBNETS="10.21.0.0/16,192.168.1.0/24"  # Umbrel net + your L
 | `VPN_SERVER_COUNTRIES` | (none) | Filter gluetun to one or more countries (comma-separated, e.g. `United States`). Empty = no country filter. |
 | `VPN_SERVER_CITIES` | (none) | Filter to one or more cities (comma-separated, e.g. `Chicago`). |
 | `VPN_SERVER_NAMES` | (none) | Pin specific server(s) by your provider's server name — **comma-separated list**; gluetun rotates/fails-over among them. Filters AND together, so when pinning names leave countries/cities empty. Pick lightly-loaded servers (a saturated one throttles downloads). |
+| `YAMTRACK_SECRET` | (empty) | **Mandatory** Django secret key for Yamtrack (cryptographic signing). Generate with `openssl rand -hex 32`. Kept out of the public repo; Yamtrack will not run without it. |
+| `YAMTRACK_URL` | (empty) | Yamtrack's public origin (e.g. `https://yamtrack.mydomain.com`), trusted by Django for CSRF on `POST`/login behind the reverse proxy. Without it, login behind a domain returns `403`. |
 
 After editing `exports.sh`, restart the app (Umbrel → app → Restart, or re-update).
 
@@ -343,7 +348,7 @@ sudo docker exec "$G" wget -qO- https://ipinfo.io/ip
 sudo docker logs "$G" 2>&1 | grep -i implementation
 
 # every in-netns WebUI answers on the host (the LAN / reverse-proxy path):
-for p in 8082 5055 8989 7878 6767 9696; do \
+for p in 8082 5055 8989 7878 6767 9696 8000; do \
   printf '%s ' "$p"; curl -fsS -o /dev/null -w '%{http_code}\n' "http://localhost:$p" || echo DOWN; done
 
 # qBittorrent: listen port must equal your reserved VPN_FORWARDED_PORT, and the

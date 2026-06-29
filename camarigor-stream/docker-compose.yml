@@ -23,7 +23,8 @@ services:
           /app-data/config/unpackerr \
           /app-data/config/gluetun \
           /app-data/config/threadfin \
-          /app-data/config/watcharr \
+          /app-data/config/yamtrack/db \
+          /app-data/config/yamtrack/redis \
           /app-data/data/torrents/movies \
           /app-data/data/torrents/tv \
           /app-data/data/torrents/cross-seed \
@@ -42,7 +43,9 @@ services:
           /app-data/config/unpackerr \
           /app-data/config/gluetun \
           /app-data/config/threadfin \
-          /app-data/config/watcharr \
+          /app-data/config/yamtrack \
+          /app-data/config/yamtrack/db \
+          /app-data/config/yamtrack/redis \
           /app-data/data \
           /app-data/data/torrents \
           /app-data/data/torrents/movies \
@@ -367,7 +370,7 @@ services:
       # reverse proxy keeps pointing at host:port — no change needed there. byparr
       # (8191) and cross-seed (2468) are intentionally NOT here: they are reached only
       # over loopback (localhost) by the other in-netns services.
-      FIREWALL_INPUT_PORTS: "8082,5055,8989,7878,6767,9696,3080"
+      FIREWALL_INPUT_PORTS: "8082,5055,8989,7878,6767,9696,8000"
       # Open the VPN's STATIC reserved forwarded port inbound on the TUNNEL so peers
       # can connect to qBittorrent (seeding/ratio/H&R). THIS is what makes the
       # reserved port work in the static model (providers with dynamic NAT-PMP
@@ -394,7 +397,7 @@ services:
       - "7878:7878"    # Radarr
       - "6767:6767"    # Bazarr
       - "9696:9696"    # Prowlarr
-      - "3080:3080"    # Watcharr
+      - "8000:8000"    # Yamtrack
     volumes:
       - ${APP_DATA_DIR}/config/gluetun:/gluetun
     # No no-new-privileges here: gluetun configures tun routing/iptables and
@@ -516,23 +519,64 @@ services:
     # /config/unpackerr.conf which the user fills with the Sonarr/Radarr URLs
     # and API keys post-install (see README), then restarts the app.
 
-  watcharr:
-    # Watcharr: self-hosted watch-history / watchlist tracker (rate & track what
-    # you've watched across movies & TV). Go backend + Svelte frontend with an
-    # embedded SQLite DB — no separate database container. Pulls metadata from TMDB
-    # and can import history from Jellyfin/Plex (all configured in its web UI on
-    # first run; the FIRST account created becomes the admin).
+  yamtrack:
+    # Yamtrack: self-hosted media tracker (movies, TV, anime, manga, games, books,
+    # comics). Django/gunicorn on :8000, backed by SQLite (no DB_HOST -> SQLite under
+    # /yamtrack/db) plus a REQUIRED Redis (Celery broker for imports/notifications +
+    # TMDB metadata cache). Replaces Watcharr (a single SQLite container) — Yamtrack
+    # needs the extra yamtrack-redis service below. The image runs as root and its
+    # /entrypoint.sh drops to PUID:PGID (1000) — same model as the LinuxServer apps,
+    # so use PUID/PGID, NOT a `user:` override.
     # Routed through the VPN: shares gluetun's network namespace, so it has NO own
-    # ports/hostname and egresses through the tunnel (TMDB lookups go over the VPN).
-    # WebUI 3080 is published by gluetun; reach it at <host>:3080 from the LAN/reverse
-    # proxy. To import from Jellyfin (on the bridge, unreachable by container name from
-    # in here), point Watcharr at the host LAN IP — same pattern as Seerr -> Jellyfin.
-    # Runs as non-root 1000:1000: the image has no USER (defaults to root, which litters
-    # the bind mount with root-owned files); verified it runs fine as 1000, writing its
-    # SQLite DB to /data. Listens on 3080 (main app) + 3000 (internal node SSR); only
-    # 3080 is the access port (published by gluetun).
-    # Pinned to v3.0.1 (latest release, 2026-03-09); bump deliberately via store updates.
-    image: ghcr.io/sbondco/watcharr:v3.0.1
+    # ports/hostname and egresses through the tunnel (TMDB/MAL/IGDB metadata lookups
+    # go over the VPN). WebUI 8000 is published by gluetun; reach it at <host>:8000
+    # from the LAN/reverse-proxy. Its Redis is in the SAME netns -> localhost:6379.
+    # Behind a reverse proxy, Django must TRUST the public origin for CSRF or login
+    # POSTs return 403 — set YAMTRACK_URL in exports.sh (e.g.
+    # https://yamtrack.mydomain.com); ALLOWED_HOSTS stays "*" so <host>:8000 also
+    # works. SECRET (Django secret key) is MANDATORY and kept out of this public repo
+    # -> set YAMTRACK_SECRET in exports.sh. Metadata language pt-BR; a default TMDB
+    # key ships with the image. Create the first account in the web UI, then set
+    # REGISTRATION=False in exports.sh to lock sign-ups.
+    # Pinned to 0.25.3 (the ghcr tag drops the leading "v"; = latest digest at pin
+    # time); bump deliberately via store updates.
+    image: ghcr.io/fuzzygrim/yamtrack:0.25.3
+    restart: on-failure
+    network_mode: "service:gluetun"
+    depends_on:
+      gluetun:
+        condition: service_healthy
+      yamtrack-redis:
+        condition: service_started
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      TZ: America/Sao_Paulo
+      PUID: "1000"
+      PGID: "1000"
+      # Django secret key — MANDATORY. Real value lives in app-data exports.sh,
+      # NEVER in this public repo (generate one with `openssl rand -hex 32`).
+      SECRET: "${YAMTRACK_SECRET:-}"
+      # Redis shares this netns, so it is reachable over loopback.
+      REDIS_URL: "redis://localhost:6379"
+      # Serve any host (LAN IP + the domain); CSRF below is what locks down POSTs.
+      ALLOWED_HOSTS: "*"
+      # Trusted origin(s) for POST behind the reverse proxy (else 403 on login).
+      # Set YAMTRACK_URL in exports.sh, e.g. https://yamtrack.mydomain.com
+      CSRF: "${YAMTRACK_URL:-}"
+      # TMDB metadata in Brazilian Portuguese.
+      TMDB_LANG: pt-BR
+    volumes:
+      - ${APP_DATA_DIR}/config/yamtrack/db:/yamtrack/db
+
+  yamtrack-redis:
+    # Redis broker + metadata cache for Yamtrack (REQUIRED by it). Named
+    # `yamtrack-redis` (not `redis`) so it never clashes with another Redis on the
+    # box. Shares gluetun's netns too, so Yamtrack reaches it at localhost:6379; it is
+    # NOT published to the LAN (absent from gluetun's ports / FIREWALL_INPUT_PORTS) —
+    # internal only. Forced to 1000:1000 (the redis image otherwise runs as uid 999
+    # and could not write the 1000-owned /data bind mount).
+    image: redis:8-alpine
     restart: on-failure
     user: "1000:1000"
     network_mode: "service:gluetun"
@@ -544,4 +588,4 @@ services:
     environment:
       TZ: America/Sao_Paulo
     volumes:
-      - ${APP_DATA_DIR}/config/watcharr:/data
+      - ${APP_DATA_DIR}/config/yamtrack/redis:/data
