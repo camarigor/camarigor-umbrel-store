@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.7.7"
+version: "1.7.8"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -96,6 +96,12 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.7.8: Fix v1.7.7 — Yamtrack binds TWO internal ports (nginx :8000 + gunicorn :8001),
+  so moving gluetun's control server to :8001 only shifted the clash onto gunicorn. The
+  control now listens on :9000, verified free against every LISTEN port in the netns
+  (clear of both Yamtrack ports). The re-roll / status API is now on :9000. No image change.
+
+
   v1.7.7: Fix the Yamtrack "Not Found" from v1.7.6 — move gluetun's control server from
   the default :8000 to :8001. Yamtrack's internal nginx is HARDCODED to :8000 and shares
   gluetun's netns, so it collided with gluetun's control server (nginx couldn't bind, so

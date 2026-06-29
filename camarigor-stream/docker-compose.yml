@@ -287,12 +287,12 @@ services:
     environment:
       TZ: America/Sao_Paulo
       # Control server (the "roleta" / on-the-fly VPN re-roll API) moved off the default
-      # :8000 to :8001 because Yamtrack's internal nginx is HARDCODED to listen on :8000
-      # and shares this netns — they collided (nginx couldn't bind, so gluetun's control
-      # server answered :8000 with "Not Found"). :8001 stays INTERNAL (it is NOT in
-      # FIREWALL_INPUT_PORTS / ports), so :8000 is free for Yamtrack and the re-roll now
-      # targets localhost:8001/v1/vpn/status (auth config unchanged).
-      HTTP_CONTROL_SERVER_ADDRESS: ":8001"
+      # :8000 to :9000. Yamtrack shares this netns and binds TWO ports — nginx on :8000
+      # (frontend) and gunicorn on :8001 (backend) — so BOTH :8000 and :8001 collide with
+      # it. :9000 was verified free against every LISTEN port in the netns. It stays
+      # INTERNAL (NOT in FIREWALL_INPUT_PORTS / ports); the re-roll now targets
+      # localhost:9000/v1/vpn/status (auth config unchanged).
+      HTTP_CONTROL_SERVER_ADDRESS: ":9000"
       VPN_SERVICE_PROVIDER: "${VPN_PROVIDER}"
       VPN_TYPE: wireguard
       # Secrets live in app-data (config/gluetun/), NEVER in this public repo.
