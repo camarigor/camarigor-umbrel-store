@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.7.6"
+version: "1.7.7"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -96,6 +96,15 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.7.7: Fix the Yamtrack "Not Found" from v1.7.6 — move gluetun's control server from
+  the default :8000 to :8001. Yamtrack's internal nginx is HARDCODED to :8000 and shares
+  gluetun's netns, so it collided with gluetun's control server (nginx couldn't bind, so
+  the control server answered :8000 with "Not Found"). The control server now listens on
+  :8001 (still INTERNAL — not in FIREWALL_INPUT_PORTS/ports), freeing :8000 for Yamtrack.
+  If you call gluetun's control API (VPN status / on-the-fly server re-roll), it is now
+  on :8001. No image change.
+
+
   v1.7.6: Replace Watcharr with Yamtrack — a self-hosted media tracker (movies, TV,
   anime, manga, games and books) with a cleaner, more organised UI. Yamtrack is a
   Django app, so it adds a REQUIRED Redis (Celery broker + TMDB metadata cache); both
