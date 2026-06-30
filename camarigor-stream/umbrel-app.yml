@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.7.8"
+version: "1.7.9"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -34,6 +34,11 @@ description: >-
   - cross-seed (internal): re-seeds the same files on other trackers
     (ratio building on private trackers) without re-downloading, via
     hardlinks.
+
+  - autobrr (7474): real-time release automation. Watches tracker IRC
+    announce channels and pushes matching releases to Sonarr/Radarr the
+    moment they drop — catching the initial swarm, far earlier than the
+    *arr RSS poll. Runs on the VPN.
 
   - Unpackerr (internal): auto-extracts RAR/scene releases (multi-part
     .rNN archives) so Sonarr and Radarr can import them.
@@ -96,6 +101,19 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.7.9: Add autobrr (7474) — real-time release automation. It watches the trackers'
+  IRC announce channels (and optionally RSS/Torznab via Prowlarr) and, on a filter
+  match, pushes the release to Sonarr/Radarr (which validate quality/wanted before
+  handing it to qBittorrent), catching the initial swarm far earlier than the *arr RSS
+  poll. It runs in gluetun's VPN netns so the announce IRC egresses from the SAME VPN IP
+  as Prowlarr/qBittorrent (private trackers expect that), and reaches Sonarr/Radarr/
+  Prowlarr over localhost. The WebUI is published by gluetun on port 7474. SQLite-backed;
+  config.toml — including a random sessionSecret — is auto-generated on first start, so
+  no exports.sh change is needed. Image pinned to ghcr.io/autobrr/autobrr:v1.81.0. After
+  installing, open <host>:7474, create your account, add your trackers (IRC credentials)
+  and connect Sonarr/Radarr as the push actions.
+
+
   v1.7.8: Fix v1.7.7 — Yamtrack binds TWO internal ports (nginx :8000 + gunicorn :8001),
   so moving gluetun's control server to :8001 only shifted the clash onto gunicorn. The
   control now listens on :9000, verified free against every LISTEN port in the netns

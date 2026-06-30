@@ -45,6 +45,7 @@ on disk and keeps seeding while it sits in your library.
 | **gluetun** | internal | `qmcgaw/gluetun` (digest-pinned) | VPN gateway for the whole acquisition stack (WireGuard + kill-switch + static port forwarding) |
 | **Byparr** | internal `8191` | `thephaseless/byparr` (digest-pinned) | Cloudflare solver, FlareSolverr-compatible API — via VPN |
 | **cross-seed** | internal `2468` | `cross-seed/cross-seed:6.13.7` | Re-seeds finished downloads on other trackers (hardlink) — via VPN |
+| **autobrr** | 7474 | `ghcr.io/autobrr/autobrr:v1.81.0` | Real-time release automation from tracker IRC announces → Sonarr/Radarr — via VPN |
 | **Unpackerr** | internal | `golift/unpackerr:0.15.2` | Auto-extracts RAR/scene releases for the *arrs — on the bridge |
 | **init** | — | `busybox:stable` | One-shot: creates the config/data directory tree and fixes ownership before anything starts |
 
@@ -308,7 +309,29 @@ so Sonarr/Radarr can import them instead of stalling on "Found archive file".
 2. Restart the app from the Umbrel UI.
 3. Logs: `sudo docker logs -f $(sudo docker ps --format '{{.Names}}' | grep unpackerr)`.
 
-### 9. VPN — gluetun (no UI)
+### 9. autobrr (`:7474`)
+
+Real-time release automation: it watches tracker IRC announce channels and pushes
+matches to Sonarr/Radarr the moment they drop (the initial swarm), well before the
+*arr RSS poll. It runs in the VPN netns, so its IRC connections egress from the same
+VPN IP as Prowlarr/qBittorrent — which is what private trackers expect.
+
+1. Open `http://<umbrel-ip>:7474` and **create your account** (first visit). There is
+   no default login; the SQLite DB and a random `sessionSecret` are auto-generated, so
+   nothing is needed in `exports.sh`.
+2. **Indexers** → add each tracker you use and paste its **IRC credentials** (nick,
+   NickServ password, announce channel / invite key). autobrr ships 110+ definitions.
+3. **Settings → Clients** → add **Sonarr** (`http://localhost:8989`) and **Radarr**
+   (`http://localhost:7878`) with their API keys (Settings → General → API Key) —
+   autobrr reaches them over loopback because it shares the VPN netns.
+4. **Filters** → define what to grab (resolution, size, category, RegEx) and set the
+   action to push to Sonarr/Radarr, which validate against their own quality/wanted
+   rules before sending to qBittorrent.
+5. (Optional) For indexers without IRC, add their Prowlarr Torznab feed
+   (`http://localhost:9696/<id>/api`) under **Feeds**.
+6. Logs: `sudo docker logs -f $(sudo docker ps --format '{{.Names}}' | grep autobrr)`.
+
+### 10. VPN — gluetun (no UI)
 
 gluetun restart-loops until the key files below exist (expected).
 
