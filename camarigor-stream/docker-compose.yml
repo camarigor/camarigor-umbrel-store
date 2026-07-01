@@ -21,6 +21,7 @@ services:
           /app-data/config/qbittorrent \
           /app-data/config/cross-seed \
           /app-data/config/autobrr \
+          /app-data/config/sabnzbd \
           /app-data/config/unpackerr \
           /app-data/config/gluetun \
           /app-data/config/threadfin \
@@ -29,6 +30,9 @@ services:
           /app-data/data/torrents/movies \
           /app-data/data/torrents/tv \
           /app-data/data/torrents/cross-seed \
+          /app-data/data/usenet \
+          /app-data/data/usenet/incomplete \
+          /app-data/data/usenet/complete \
           /app-data/data/media/movies \
           /app-data/data/media/tv
         chown 1000:1000 \
@@ -42,6 +46,7 @@ services:
           /app-data/config/qbittorrent \
           /app-data/config/cross-seed \
           /app-data/config/autobrr \
+          /app-data/config/sabnzbd \
           /app-data/config/unpackerr \
           /app-data/config/gluetun \
           /app-data/config/threadfin \
@@ -53,6 +58,9 @@ services:
           /app-data/data/torrents/movies \
           /app-data/data/torrents/tv \
           /app-data/data/torrents/cross-seed \
+          /app-data/data/usenet \
+          /app-data/data/usenet/incomplete \
+          /app-data/data/usenet/complete \
           /app-data/data/media \
           /app-data/data/media/movies \
           /app-data/data/media/tv
@@ -379,7 +387,7 @@ services:
       # reverse proxy keeps pointing at host:port — no change needed there. byparr
       # (8191) and cross-seed (2468) are intentionally NOT here: they are reached only
       # over loopback (localhost) by the other in-netns services.
-      FIREWALL_INPUT_PORTS: "8082,5055,8989,7878,6767,9696,8000,7474"
+      FIREWALL_INPUT_PORTS: "8082,5055,8989,7878,6767,9696,8000,7474,8080"
       # Open the VPN's STATIC reserved forwarded port inbound on the TUNNEL so peers
       # can connect to qBittorrent (seeding/ratio/H&R). THIS is what makes the
       # reserved port work in the static model (providers with dynamic NAT-PMP
@@ -408,6 +416,7 @@ services:
       - "9696:9696"    # Prowlarr
       - "8000:8000"    # Yamtrack
       - "7474:7474"    # autobrr
+      - "8085:8080"    # SABnzbd (host 8085 -> netns 8080; 8080 on the host is the miner-hq app)
     volumes:
       - ${APP_DATA_DIR}/config/gluetun:/gluetun
     # No no-new-privileges here: gluetun configures tun routing/iptables and
@@ -535,6 +544,41 @@ services:
       - ${APP_DATA_DIR}/config/autobrr:/config
     # No ports here: WebUI 7474 is published by gluetun above. IRC + Torznab egress
     # through the tunnel.
+
+  sabnzbd:
+    # SABnzbd: Usenet (NZB) download client — the Usenet counterpart of qBittorrent.
+    # Sonarr/Radarr hand it .nzb files (from Usenet indexers like DrunkenSlug via
+    # Prowlarr); it downloads the parts DIRECTLY from your paid Usenet PROVIDER over SSL
+    # (port 563), repairs (PAR2) and unpacks. No peers, no ratio, no seeding.
+    # Routed through the VPN (shares gluetun's netns) ON PURPOSE: Usenet's SSL hides the
+    # CONTENT, but without a VPN the ISP still sees the DESTINATION + port 563 (a clear
+    # "uses Usenet" signal). Sharing gluetun's tunnel hides that metadata, and the
+    # kill-switch guarantees SABnzbd never reaches the provider over the bare home IP.
+    # Trade-off: the VPN tunnel is the speed ceiling (the provider can do multi-Gbit; you
+    # get what the tunnel delivers) — the same tunnel that already carries the torrents.
+    # Downloads INTO /data/usenet (incomplete -> complete) on the SAME /data tree as the
+    # torrents, so Sonarr/Radarr import via HARDLINK to /data/media (no duplicated disk).
+    # WebUI 8080 is published by gluetun as <host>:8085; Sonarr/Radarr reach it over
+    # loopback at http://localhost:8080. NOTE: when reached via <host>:8085 or a reverse
+    # proxy, add that hostname to SABnzbd's host_whitelist (Config -> Special) or it
+    # replies "Access denied - Hostname verification failed". Pinned; bump via the store.
+    image: lscr.io/linuxserver/sabnzbd:5.0.4-ls260
+    restart: on-failure
+    network_mode: "service:gluetun"
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: America/Sao_Paulo
+      UMASK: "002"
+    volumes:
+      - ${APP_DATA_DIR}/config/sabnzbd:/config
+      - ${APP_DATA_DIR}/data:/data
+    # No ports here: WebUI 8080 is published by gluetun as <host>:8085 above.
 
   unpackerr:
     # Auto-extracts RAR/scene releases that Sonarr/Radarr grab. Scene BluRay

@@ -46,6 +46,7 @@ on disk and keeps seeding while it sits in your library.
 | **Byparr** | internal `8191` | `thephaseless/byparr` (digest-pinned) | Cloudflare solver, FlareSolverr-compatible API — via VPN |
 | **cross-seed** | internal `2468` | `cross-seed/cross-seed:6.13.7` | Re-seeds finished downloads on other trackers (hardlink) — via VPN |
 | **autobrr** | 7474 | `ghcr.io/autobrr/autobrr:v1.81.0` | Real-time release automation from tracker IRC announces → Sonarr/Radarr — via VPN |
+| **SABnzbd** | 8085 | `linuxserver/sabnzbd:5.0.4-ls260` | Usenet (NZB) download client — via VPN (internal port 8080) |
 | **Unpackerr** | internal | `golift/unpackerr:0.15.2` | Auto-extracts RAR/scene releases for the *arrs — on the bridge |
 | **init** | — | `busybox:stable` | One-shot: creates the config/data directory tree and fixes ownership before anything starts |
 
@@ -331,7 +332,32 @@ VPN IP as Prowlarr/qBittorrent — which is what private trackers expect.
    (`http://localhost:9696/<id>/api`) under **Feeds**.
 6. Logs: `sudo docker logs -f $(sudo docker ps --format '{{.Names}}' | grep autobrr)`.
 
-### 10. VPN — gluetun (no UI)
+### 10. SABnzbd (`:8085`) — Usenet
+
+Usenet download client. It runs in the VPN netns (so your ISP can't see the Usenet
+traffic — see note below) and downloads into `/data/usenet`, which Sonarr/Radarr import
+via hardlink to `/data/media`.
+
+1. Open `http://<umbrel-ip>:8085` and run the wizard. Then **Config → Servers → add your
+   Usenet provider**: host, port **563 (SSL on)**, username, password, connections (e.g.
+   ~50). This is the paid piece that actually holds/serves the data.
+2. **Config → Folders**: temporary/incomplete = `/data/usenet/incomplete`, completed =
+   `/data/usenet/complete`.
+3. **Config → Special → `host_whitelist`**: add `<umbrel-ip>` and your reverse-proxy
+   hostname, or SABnzbd answers *"Access denied - Hostname verification failed"* when
+   reached at `<host>:8085` (not needed for the localhost path used by Sonarr/Radarr).
+4. **Sonarr/Radarr → Settings → Download Clients → add SABnzbd** at
+   **`http://localhost:8080`** (same VPN netns) with SABnzbd's API key (Config → General).
+5. **Prowlarr → add your Usenet indexer** (e.g. DrunkenSlug, a Newznab indexer) and sync
+   to Sonarr/Radarr — that's what feeds NZBs to SABnzbd.
+6. Logs: `sudo docker logs -f $(sudo docker ps --format '{{.Names}}' | grep sabnzbd)`.
+
+> **Why on the VPN:** Usenet's SSL already hides *what* you download, but without a VPN
+> your ISP still sees the *destination + port 563* (a clear "uses Usenet" signal).
+> Sharing gluetun's tunnel hides that, and the kill-switch stops SABnzbd from ever
+> connecting over the bare home IP. Trade-off: the tunnel is the speed ceiling.
+
+### 11. VPN — gluetun (no UI)
 
 gluetun restart-loops until the key files below exist (expected).
 

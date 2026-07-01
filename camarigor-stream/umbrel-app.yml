@@ -2,7 +2,7 @@ manifestVersion: 1
 id: camarigor-stream
 category: media
 name: Stream
-version: "1.7.9"
+version: "1.7.10"
 tagline: Complete media stack — Jellyfin, Jellyseerr, *arr, qBittorrent and cross-seed in a single app
 icon: https://raw.githubusercontent.com/camarigor/camarigor-umbrel-store/main/camarigor-stream/icon.png
 description: >-
@@ -39,6 +39,12 @@ description: >-
     announce channels and pushes matching releases to Sonarr/Radarr the
     moment they drop — catching the initial swarm, far earlier than the
     *arr RSS poll. Runs on the VPN.
+
+  - SABnzbd (8085): Usenet download client (NZB) — the Usenet counterpart
+    of qBittorrent (no peers, no ratio, no seeding). Downloads from your
+    paid Usenet provider over SSL and hands finished files to Sonarr/Radarr
+    via hardlink. Runs on the VPN so the ISP can't see the Usenet traffic.
+    Requires a Usenet provider + indexer.
 
   - Unpackerr (internal): auto-extracts RAR/scene releases (multi-part
     .rNN archives) so Sonarr and Radarr can import them.
@@ -101,6 +107,20 @@ port: 8096
 gallery: []
 path: ""
 releaseNotes: >-
+  v1.7.10: Add SABnzbd (8085) — a Usenet (NZB) download client, the counterpart of
+  qBittorrent for Usenet (no peers, no ratio, no seeding). Sonarr/Radarr hand it .nzb
+  files (from Usenet indexers via Prowlarr) and it downloads directly from your paid
+  Usenet provider over SSL, then imports into /data/media via hardlink from /data/usenet
+  (same disk, no duplication). It runs INSIDE gluetun's VPN netns on purpose: Usenet's
+  SSL hides the content, but the VPN also hides from your ISP the metadata that you use
+  Usenet at all (destination + port 563), and the kill-switch stops it from ever
+  connecting over the bare home IP. WebUI published by gluetun at <host>:8085 (internal
+  8080). Image pinned to lscr.io/linuxserver/sabnzbd:5.0.4-ls260. After installing, set
+  your Usenet provider (host / port 563 SSL / user / pass) in SABnzbd, add it as a
+  Download Client in Sonarr/Radarr (localhost:8080), and add your Usenet indexer (e.g.
+  DrunkenSlug) in Prowlarr. Requires a paid Usenet provider + indexer.
+
+
   v1.7.9: Add autobrr (7474) — real-time release automation. It watches the trackers'
   IRC announce channels (and optionally RSS/Torznab via Prowlarr) and, on a filter
   match, pushes the release to Sonarr/Radarr (which validate quality/wanted before
